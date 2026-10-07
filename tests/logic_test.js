@@ -1,5 +1,7 @@
 const K = require(process.argv[2]);
 const { solve, exprStr, parseMD, canonicalMD, judge, circuitSVG, randomProblem, kLayout, cellMinterm, solCost } = K;
+// 固定種子的亂數（mulberry32），讓每次測資相同、失敗時可以重現
+const rand = (seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; })(20261007);
 let pass = 0, fail = 0;
 const ok = (name, cond, info = '') => { if (cond) pass++; else { fail++; console.log('FAIL', name, info); } };
 const V = (n, s) => { const r = parseMD(s, n); const v = Array(1 << n).fill(0); r.ones.forEach(k => v[k] = 1); r.dcs.forEach(k => v[k] = 2); return v; };
@@ -68,7 +70,7 @@ const evalSol = (sol, n, form, m) => {
 let rnd = 0, rndConst = 0;
 for (let it = 0; it < 3000; it++) {
   const n = 2 + it % 3, dc = it % 2 === 0, N = 1 << n;
-  const v = []; for (let m = 0; m < N; m++) v.push(dc && Math.random() < 0.2 ? 2 : (Math.random() < 0.5 ? 1 : 0));
+  const v = []; for (let m = 0; m < N; m++) v.push(dc && rand() < 0.2 ? 2 : (rand() < 0.5 ? 1 : 0));
   for (const form of ['SOP', 'POS']) {
     const r = solve(n, v, form);
     for (const s of r.solutions) {
@@ -79,8 +81,8 @@ for (let it = 0; it < 3000; it++) {
     }
   }
 }
-{ let bad = 0; for (let i = 0; i < 2000; i++) { const n = 2 + i % 3, N = 1 << n; const v = randomProblem(n, i % 2 === 0);
-    const lit = () => { const k = Math.floor(Math.random() * n); return 'ABCD'[k] + (Math.random() < .5 ? "'" : ''); };
+{ let bad = 0; for (let i = 0; i < 2000; i++) { const n = 2 + i % 3; const v = randomProblem(n, i % 2 === 0);
+    const lit = () => { const k = Math.floor(rand() * n); return 'ABCD'[k] + (rand() < .5 ? "'" : ''); };
     const src = i % 4 < 2 ? Array.from({ length: 1 + i % 3 }, () => lit() + lit()).join('+') : Array.from({ length: 1 + i % 3 }, () => '(' + lit() + '+' + lit() + ')').join('');
     const r = judge(n, v, i % 3 ? 'SOP' : 'POS', src); if (r.kind !== 'wrong') continue;
     const all = r.groups.flatMap(g => g.ms).sort((a, b) => a - b).join(), exp = [...r.extra, ...r.miss].sort((a, b) => a - b).join();
@@ -91,7 +93,7 @@ console.log('  constant-function judge cases not judged correct:', rndConst);
 // Brute force 3-var 300
 let bf = 0;
 for (let it = 0; it < 300; it++) {
-  const n = 3, N = 8, v = []; for (let m = 0; m < N; m++) v.push(Math.random() < 0.2 ? 2 : (Math.random() < 0.5 ? 1 : 0));
+  const n = 3, N = 8, v = []; for (let m = 0; m < N; m++) v.push(rand() < 0.2 ? 2 : (rand() < 0.5 ? 1 : 0));
   for (const form of ['SOP', 'POS']) {
     const want = form === 'SOP' ? 1 : 0, req = [...Array(N).keys()].filter(m => v[m] === want);
     const cubes = [];
@@ -101,7 +103,6 @@ for (let it = 0; it < 300; it++) {
     let best = null;
     if (!req.length) best = { terms: 0, lits: 0 };
     else {
-      const total = 1 << cubes.length;
       for (let k = 1; k <= 4 && !best; k++) {
         const rec = (start, acc) => { if (acc.length === k) { if (req.every(m => acc.some(c => c.cov.includes(m)))) { const l = acc.reduce((s, c) => s + c.lits, 0); if (!best || l < best.lits) best = { terms: k, lits: l }; } return; }
           for (let i = start; i < cubes.length; i++) { acc.push(cubes[i]); rec(i + 1, acc); acc.pop(); } };
