@@ -1,5 +1,16 @@
 const K = require(process.argv[2]);
 const { solve, exprStr, parseMD, canonicalMD, judge, circuitSVG, randomProblem, kLayout, cellMinterm, solCost } = K;
+// 固定種子的亂數（Park–Miller），讓每次測資相同、失敗時可以重現
+let seed = 20_261_007;
+function rand() {
+  seed = (seed * 16_807) % 2_147_483_647;
+  return (seed - 1) / 2_147_483_646;
+}
+// 隨機格子值：含 X 時約 20% 為 X，其餘一半 1、一半 0
+function randCell(withDc) {
+  if (withDc && rand() < 0.2) return 2;
+  return rand() < 0.5 ? 1 : 0;
+}
 let pass = 0, fail = 0;
 const ok = (name, cond, info = '') => { if (cond) pass++; else { fail++; console.log('FAIL', name, info); } };
 const V = (n, s) => { const r = parseMD(s, n); const v = Array(1 << n).fill(0); r.ones.forEach(k => v[k] = 1); r.dcs.forEach(k => v[k] = 2); return v; };
@@ -46,6 +57,17 @@ const countGates = svg => ({ not: (svg.match(/<path class="gate" d="M[\d.]+,[\d.
   ok('AC15d', judge(4, v, 'SOP', "B'D'+").kind === 'syntax');
   ok('syntax ~ !', judge(4, v, 'SOP', "~b*!d").kind === 'correct');
   ok('POS judge', judge(4, v, 'POS', "(B')(D')").kind === 'correct'); }
+// AC19: wrong-answer explanation names the term that covers a wrong cell
+{ const v = V(4, 'm(5,7,14,15)'); const g = judge(4, v, 'SOP', 'BD+ABC').groups;
+  ok('AC19 friend case', g.length === 1 && g[0].type === 'over' && g[0].terms.join() === 'BD' && g[0].ms.join() === '13', JSON.stringify(g));
+  const g2 = judge(4, V(4, 'm(0,2,8,10)'), 'SOP', "B'").groups;
+  ok('AC19 over only', g2.length === 1 && g2[0].terms.join() === "B'" && g2[0].ms.join() === '1,3,9,11', JSON.stringify(g2));
+  const g3 = judge(4, v, 'SOP', "B'").groups;
+  ok('AC19 under', g3.some(x => x.type === 'under' && x.ms.join() === '5,7,14,15'), JSON.stringify(g3));
+  const g4 = judge(4, v, 'POS', '(B+D)(A+C)').groups;
+  ok('AC19 POS', g4.some(x => x.type === 'over' && x.shape === 'POS' && x.terms.join() === '(A+C)' && x.ms.join() === '5'), JSON.stringify(g4));
+  const g5 = judge(4, v, 'SOP', "A'BD+A(B+C)D'").groups;
+  ok('AC19 non-SOP fallback', g5.every(x => x.type === 'diff'), JSON.stringify(g5)); }
 // AC16
 { const v = V(4, 'm(1,3,7,11,15)+d(0,2,5)'); ok('AC16', judge(4, v, 'SOP', "CD + A'B'").kind === 'correct' && judge(4, v, 'SOP', "CD + A'D").kind === 'correct'); }
 // AC17 logic part
@@ -57,7 +79,7 @@ const evalSol = (sol, n, form, m) => {
 let rnd = 0, rndConst = 0;
 for (let it = 0; it < 3000; it++) {
   const n = 2 + it % 3, dc = it % 2 === 0, N = 1 << n;
-  const v = []; for (let m = 0; m < N; m++) v.push(dc && Math.random() < 0.2 ? 2 : (Math.random() < 0.5 ? 1 : 0));
+  const v = []; for (let m = 0; m < N; m++) v.push(randCell(dc));
   for (const form of ['SOP', 'POS']) {
     const r = solve(n, v, form);
     for (const s of r.solutions) {
@@ -68,12 +90,19 @@ for (let it = 0; it < 3000; it++) {
     }
   }
 }
+{ let bad = 0; for (let i = 0; i < 2000; i++) { const n = 2 + i % 3; const v = randomProblem(n, i % 2 === 0);
+    const lit = () => { const k = Math.floor(rand() * n); return 'ABCD'[k] + (rand() < .5 ? "'" : ''); };
+    const src = i % 4 < 2 ? Array.from({ length: 1 + i % 3 }, () => lit() + lit()).join('+') : Array.from({ length: 1 + i % 3 }, () => '(' + lit() + '+' + lit() + ')').join('');
+    const r = judge(n, v, i % 3 ? 'SOP' : 'POS', src); if (r.kind !== 'wrong') continue;
+    const all = r.groups.flatMap(g => g.ms).sort((a, b) => a - b).join(), exp = [...r.extra, ...r.miss].sort((a, b) => a - b).join();
+    if (all !== exp || r.groups.some(g => g.type === 'over' && !g.terms.length)) { bad++; if (bad < 4) console.log('groups fail', src, JSON.stringify(r)); } }
+  ok('wrong groups cover every differing cell once', bad === 0, bad); }
 ok('random 3000 (non-constant)', rnd === 0, rnd);
 console.log('  constant-function judge cases not judged correct:', rndConst);
 // Brute force 3-var 300
 let bf = 0;
 for (let it = 0; it < 300; it++) {
-  const n = 3, N = 8, v = []; for (let m = 0; m < N; m++) v.push(Math.random() < 0.2 ? 2 : (Math.random() < 0.5 ? 1 : 0));
+  const n = 3, N = 8, v = []; for (let m = 0; m < N; m++) v.push(randCell(true));
   for (const form of ['SOP', 'POS']) {
     const want = form === 'SOP' ? 1 : 0, req = [...Array(N).keys()].filter(m => v[m] === want);
     const cubes = [];
@@ -83,7 +112,6 @@ for (let it = 0; it < 300; it++) {
     let best = null;
     if (!req.length) best = { terms: 0, lits: 0 };
     else {
-      const total = 1 << cubes.length;
       for (let k = 1; k <= 4 && !best; k++) {
         const rec = (start, acc) => { if (acc.length === k) { if (req.every(m => acc.some(c => c.cov.includes(m)))) { const l = acc.reduce((s, c) => s + c.lits, 0); if (!best || l < best.lits) best = { terms: k, lits: l }; } return; }
           for (let i = start; i < cubes.length; i++) { acc.push(cubes[i]); rec(i + 1, acc); acc.pop(); } };
