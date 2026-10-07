@@ -33,7 +33,8 @@ TAICA「生成式AI：文字與圖像生成的原理與實務」第五週作業�
 | 項目 | 狀態 |
 | --- | --- |
 | 規格書 v1.2 | 完成（完整內容見第 3 節；v1.1 原始文件在 claude.ai Docs「K-Map Practice 規格書」，v1.2 只改判分規則 2 並新增 AC19） |
-| `index.html` v0.2 | 完成；不等價時的說明改為指出是哪一項圈錯、哪些格子漏圈（朋友回饋）。AC1–AC19 全數通過 |
+| `index.html` v0.2 | 完成並已上線（PR #2 合併後確認線上檔案與 main 相同、頁尾顯示 v0.2）；不等價時的說明改為指出是哪一項圈錯、哪些格子漏圈（朋友回饋）。AC1–AC19 全數通過 |
+| SonarQube Cloud | repo 改 public 後會自動檢查每個 PR；PR #2 經兩輪修正後 Quality Gate 通過。規則與經過見第 5 節第 3 點 |
 | GitHub repo | 已建立 `RogerH0711/K-Map-Practice`，`index.html` v0.1 已在 main；2026-10-07 在 Claude Code 重跑第 5 節全部測試通過 |
 | GitHub Pages | 已上線：https://rogerh0711.github.io/K-Map-Practice/ （repo 改為 public 後啟用，從 main / root 發布）。2026-10-07 確認：線上檔案與 main 的 `index.html` 完全相同；用 Chromium 開線上網址，1280 px 與 375 px 都能正常化簡、無水平捲動、無 console error；使用者本人也已用瀏覽器開啟確認 |
 | 手機實測、使用者回饋 | 本人實測無問題；朋友回饋「不等價的解釋很奇怪」→ v0.2 |
@@ -153,7 +154,7 @@ F1–F8 屬於「化簡模式」，F9 為「練習模式」，F10 為整體介�
 | 基本定義 | `kLayout`、`cellMinterm`、`literals`、`termStr`、`exprStr`、`solCost` | 版面（Gray code）、項的表示法 `{v, mask, cov}`（mask 的 bit = 1 代表 `-`） |
 | 化簡 | `solve(n, vals, form)` | vals 每格 0／1／2（2 = X）；回傳 rounds、pis、ess、remaining、cand、kMin、covers、solutions。POS 的解依變數順序排序 |
 | 輸入解析 | `parseMD`、`valsFromMD`、`canonicalMD` | m()/d() 的解析與正規化 |
-| 練習判分 | `parseExpr`、`evalNode`、`sopCost`、`posCost`、`nodeStr`、`diffGroups`、`judge`、`randomProblem` | `judge` 回傳 kind：syntax／wrong／form／notmin／correct；wrong 另含 `groups`（type：over 圈到不該圈的格子／under 漏圈／diff 非 SOP、POS 形式），畫面由 `groupHTML` 轉成文字 |
+| 練習判分 | `parseExpr`、`evalNode`、`sopCost`、`posCost`、`nodeStr`、`answerShape`、`topItems`、`diffGroups`、`judge`、`randomProblem` | `judge` 回傳 kind：syntax／wrong／form／notmin／correct；wrong 另含 `groups`（type：over 圈到不該圈的格子／under 漏圈／diff 非 SOP、POS 形式），畫面由 `groupHTML` 依 `GROUP_TEXT` 句型表轉成文字 |
 | 電路 | `circuitSVG`、`gatePath`、`orBack` | 變數匯流排 + NOT + 兩層閘；第一層閘填入與 K-map 圈相同的顏色 |
 | K-map 圈 | `segments`、`groupSegs`、`renderKmap` | 環繞的圈拆成多段，用 clipPath 裁切成「開口」造型 |
 | 畫面 | `renderSimplify`、`renderPractice`、`stepsHTML`、`piTableHTML`、`setHL`、`bindHL` | 狀態物件 `S`（化簡）、`P`（練習）；每次狀態變動整塊重繪 |
@@ -168,7 +169,7 @@ F1–F8 屬於「化簡模式」，F9 為「練習模式」，F10 為整體介�
 
 每輪修改後都要跑，結果寫進迭代紀錄。測試腳本與執行指令在 `tests/`（見 `tests/README.md`）。
 
-1. **邏輯測試（Node）**：用 Python 把 `index.html` 的 `<script>` 內容抽出成 `km.js`，`require` 後跑：
+1. **邏輯測試（Node）**：用 Python 把 `index.html` 的 `<script>` 內容抽出成 `km.js`，`require` 後跑（隨機測資用固定種子的 `rand()`，每次執行內容相同）：
    - AC1、AC3–AC17、AC19 的測資逐條比對（POS 比對前先去掉空白）
    - 2000 組隨機錯誤答案：`groups` 必須剛好涵蓋每個不同的格子一次，且 over 類一定有指出是哪一項
    - 3000 組隨機函數（2–4 變數、含／不含 X）：每組最簡解都要與原函數等價，且把解答丟回 `judge` 必須判為 correct
@@ -181,6 +182,25 @@ v0.1、v0.2 的測試結果：上述全部通過。
 - 函數本身是常數（例如全 1 加 X）時，`judge` 對答案 `1`／`0` 回傳 `form` 而非 `correct`。練習模式的 `randomProblem` 不會出常數題，所以使用者碰不到。
 - 多解時項的顯示順序依 PI 排序，例如 AC7 顯示為 `A'B' + CD`，與規格寫的 `CD + A'B'` 順序不同（內容相同）。
 
+3. **SonarQube Cloud（PR 自動檢查）**
+
+   repo 改成 public 後，SonarQube Cloud 會自動分析每個 PR，並由 `sonarqubecloud[bot]` 留言、寄信。Quality Gate 要求 New Code 的 Security 與 Maintainability Rating 都是 A，沒過時 PR 上會有紅色的 check。它不影響網站；是否設定成「沒過就不能合併」沒有查過，原則上修到通過再合併。
+
+   - **看明細**：SonarQube 上的專案不是公開的，匿名呼叫 API 會回「Project doesn't exist」，所以 Claude 查不到明細。要請使用者登入 SonarQube Cloud，在 PR 的 Issues 頁截圖（規則、檔案、行數）。GitHub 上的 check runs 有時也查不到最新 commit 的結果，一樣以使用者的截圖為準。
+   - **它實際分析的範圍**（推測）：PR #2 的三次分析中，issue 全部出現在 `tests/*.js`，`index.html` 一個都沒有。推測它沒有把 HTML 內嵌的 JS 當成程式碼分析。
+   - **「New Code」的範圍**：PR 裡改到的每一行都算新程式碼。只是把舊的一行改個名稱，那一行原本的寫法（例如巢狀三元運算子）也會被標出來。
+   - **寫測試時避開**：
+     - 不用 `Math.random()`，會被當成 Security 問題；改用 `tests/logic_test.js` 開頭的固定種子 `rand()`。
+     - 不寫巢狀三元運算子 `a ? b : (c ? d : e)`，改抽成小函式。
+     - 不留沒用到的變數。
+     - 不用 `x | 0` 取整數。它會建議改成 `Math.trunc`，但兩者語意不同，要先確認再改。
+     - `if (…) return x; return y;` 不要寫在同一行（`no-unenclosed-multiline-block`）。
+   - **push 前在本機預查**：
+     - 工具：`eslint@9` + `eslint-plugin-sonarjs` + `eslint-plugin-unicorn`。`sonarjs` 還需要 `typescript` 與 `ts-api-utils`，裝在暫存目錄即可，不要放進 repo。
+     - 只看這個 PR 改到的行：`git diff -U0 origin/main`。
+     - `unicorn` 規則集比 Sonar 預設的「Sonar way」嚴格很多。`.join()` 未寫分隔符號、`.length > 0`、變數縮寫這類 Sonar 沒標過的，不用處理。
+   - **`index.html` 的 `randomProblem` 用 `Math.random()`**：這是出題本來就需要的。若日後被標出來，在 SonarQube 上標成 Safe，不要改掉。
+
 ---
 
 ## 6. 迭代紀錄（最新在上）
@@ -189,6 +209,7 @@ v0.1、v0.2 的測試結果：上述全部通過。
 
 | 版本 | 日期 | 發現的問題／需求 | 給 AI 的指示 | 結果 |
 | --- | --- | --- | --- | --- |
+| 程式 v0.2（SonarQube 修正） | 2026-10-07 | 開 PR #2 後 SonarQube Cloud 的 Quality Gate 沒過（Security C、Maintainability B）。第 1 輪 4 個 issue 都在 `tests/logic_test.js`：沒用到的變數 `N`、`Math.random()`。修完後第 2 輪又出 3 個：`\| 0` 建議改 `Math.trunc`；`Math.random` 換成 `rand` 時改到的兩行，原本的巢狀三元運算子被算成新程式碼 | 刪掉沒用到的變數；測試改用固定種子亂數，最後改成不用位元運算的 Park–Miller，因為 `\| 0` 改 `Math.trunc` 語意不同；巢狀三元運算子抽成 `randCell()`。另外依本機 sonarjs 檢查，把 `index.html` 新增的判分說明改寫，拿掉巢狀三元運算子，行為不變 | 第 3 輪 Quality Gate 通過；測試全部通過，且隨機測資每次相同、可重現；PR #2 合併，線上確認為 v0.2 |
 | 程式 v0.2／規格 v1.2 | 2026-10-07 | 朋友練習 `m(5,7,14,15)` 答 `BD + ABC`，回饋只寫「K-map 上紅框的格子算錯了；F 應為 0，你的式子卻是 1：m13」，覺得解釋很奇怪：看不出是哪一項錯、錯在哪 | 不等價時改成指出原因：哪一項包含了不該圈的格子（例如「BD 這一項包含 m13，但題目在這格是 0…這個圈圈到了 0」），哪些格子漏圈；POS 用和項說明；同原因的格子合併成一句；頁尾改 v0.2 | 新增 AC19 與 2000 組隨機錯誤答案測試；AC1–AC19、隨機與暴力窮舉測試、桌機／375 px 畫面測試全部通過 |
 | 程式 v0.1 | 2026-10-07 | 依規格 v1.1 產生第一版；用 AC 測資自動測試時發現 POS 項順序是 (D')(B')，與 AC9 預期的 (B')(D') 不同；截圖檢查發現格子編號被圈遮住、切換後算式殘留半透明 | 照規格 F1–F10 實作單一 index.html；POS 和項依變數順序排列；格子編號移到圈的上層；每次重繪時清除反白狀態 | AC1–AC18 全部通過，另加 3000 組隨機函數驗證等價、300 組 3 變數暴力窮舉驗證最簡；桌機與 375 px 手機版面正常 |
 | 規格 v1.1 | 2026-10-07 | 名稱要反映用途：實驗課以插麵包板為主，這個純計算工具比較接近理論課的練習 | 名稱改為 K-Map Practice；確認版面（列 AB、欄 CD）、最簡定義、補數符號 `'` | 規格書改名，其餘內容不變 |
