@@ -496,31 +496,40 @@ function posCost(ast) {
   return { terms: terms.length, lits };
 }
 function nodeStr(x) {
-  switch (x.op) {
-    case 'var': return VARS[x.i];
-    case 'const': return String(x.v);
-    case 'not': return x.a.op === 'var' || x.a.op === 'const' ? nodeStr(x.a) + "'" : '(' + nodeStr(x.a) + ")'";
-    case 'and': return x.items.map(y => y.op === 'or' ? '(' + nodeStr(y) + ')' : nodeStr(y)).join('');
-    case 'or': return x.items.map(nodeStr).join('+');
-  }
+  if (x.op === 'var') return VARS[x.i];
+  if (x.op === 'not') return x.a.op === 'var' || x.a.op === 'const' ? nodeStr(x.a) + "'" : '(' + nodeStr(x.a) + ")'";
+  if (x.op === 'and') return x.items.map(y => (y.op === 'or' ? '(' + nodeStr(y) + ')' : nodeStr(y))).join('');
+  if (x.op === 'or') return x.items.map(nodeStr).join('+');
+  return String(x.v);
 }
+// 作答的形狀：優先依題目要求的形式判斷，不是 SOP／POS 時回傳 null
+function answerShape(ast, form) {
+  const isS = sopCost(ast) !== null, isP = posCost(ast) !== null;
+  if (form === 'POS' && isP) return 'POS';
+  if (isS) return 'SOP';
+  if (isP) return 'POS';
+  return null;
+}
+const topItems = (ast, op) => (ast.op === op ? ast.items : [ast]);
 // 不等價的原因：SOP 看哪個積項包含了 0 的格子（圈到 0）、哪些 1 沒有任何項包含（漏圈）；POS 反過來看和項
 function diffGroups(ast, n, form, extra, miss) {
-  const isS = sopCost(ast) !== null, isP = posCost(ast) !== null;
-  const shape = form === 'POS' ? (isP ? 'POS' : isS ? 'SOP' : null) : (isS ? 'SOP' : isP ? 'POS' : null);
+  const shape = answerShape(ast, form);
   if (!shape) return [{ type: 'diff', want: 0, ms: extra }, { type: 'diff', want: 1, ms: miss }].filter(g => g.ms.length);
-  const terms = shape === 'SOP' ? (ast.op === 'or' ? ast.items : [ast]) : (ast.op === 'and' ? ast.items : [ast]);
-  const hit = shape === 'SOP' ? 1 : 0;           // SOP 積項為 1、POS 和項為 0 時，代表這一項圈到該格
-  const over = shape === 'SOP' ? extra : miss;   // 被某一項圈到、但不該圈的格子
-  const under = shape === 'SOP' ? miss : extra;  // 該圈卻沒有任何一項圈到的格子
-  const groups = [], byKey = new Map();
+  const sop = shape === 'SOP';
+  const terms = topItems(ast, sop ? 'or' : 'and');
+  const hit = sop ? 1 : 0;           // SOP 積項為 1、POS 和項為 0 時，代表這一項圈到該格
+  const over = sop ? extra : miss;   // 被某一項圈到、但不該圈的格子
+  const under = sop ? miss : extra;  // 該圈卻沒有任何一項圈到的格子
+  const label = t => (sop ? nodeStr(t) : '(' + nodeStr(t) + ')');
+  const byKey = new Map();
   for (const m of over) {
-    const ts = terms.filter(t => evalNode(t, m, n) === hit).map(t => shape === 'POS' ? '(' + nodeStr(t) + ')' : nodeStr(t));
+    const ts = terms.filter(t => evalNode(t, m, n) === hit).map(label);
     const key = ts.join('|');
-    if (!byKey.has(key)) { const g = { type: 'over', shape, terms: ts, ms: [] }; byKey.set(key, g); groups.push(g); }
+    if (!byKey.has(key)) byKey.set(key, { shape, type: 'over', terms: ts, ms: [] });
     byKey.get(key).ms.push(m);
   }
-  if (under.length) groups.push({ type: 'under', shape, ms: under });
+  const groups = [...byKey.values()];
+  if (under.length) groups.push({ shape, type: 'under', ms: under });
   return groups;
 }
 function judge(n, vals, form, src) {
@@ -532,7 +541,7 @@ function judge(n, vals, form, src) {
     const got = evalNode(ast, m, n);
     if (got !== vals[m]) (got ? extra : miss).push(m);
   }
-  if (extra.length || miss.length) return { kind: 'wrong', extra, miss, groups: diffGroups(ast, n, form, extra, miss) };
+  if (extra.length || miss.length) { const groups = diffGroups(ast, n, form, extra, miss); return { kind: 'wrong', extra, miss, groups }; }
   const res = solve(n, vals, form), best = solCost(res.solutions[0], n);
   const cost = form === 'SOP' ? sopCost(ast) : posCost(ast);
   if (!cost) return { kind: 'form' };
@@ -837,16 +846,23 @@ function renderPractice() {
   setHL($('#practice'), null);
 }
 function termSpan(t) { return `<span class="e">${esc(t).replace(/[A-D]/g, '<i>$&</i>')}</span>`; }
+// 不等價說明的句型；c 為格子清單，it 為「這格／這些格子」，many 為是否有多個項，several 為是否有多個格子
+const GROUP_TEXT = {
+  SOP: {
+    over: (who, c, it, many) => `${who} ${many ? '都' : '這一項'}包含 ${c}，但題目在${it}是 0，所以你的式子算出 1。也就是${many ? '這幾個圈' : '這個圈'}圈到了 0，要縮小或換個圈法。`,
+    under: (c, it, several) => `${c} 題目是 1，但你的式子沒有任何一項包含${it}，所以算出 0。也就是${several ? '這些' : '這個'} 1 還沒被圈到。`,
+  },
+  POS: {
+    over: (who, c, it, many) => `和項 ${who} ${many ? '都' : ''}在 ${c} 為 0，但題目在${it}是 1，所以你的式子算出 0。也就是${many ? '這幾個圈' : '這個圈'}圈到了 1（POS 只能圈 0 和 X）。`,
+    under: (c, it, several) => `${c} 題目是 0，但你的式子沒有任何和項在${it}為 0，所以算出 1。也就是${several ? '這些' : '這個'} 0 還沒被圈到。`,
+  },
+};
 function groupHTML(g, ms) {
-  const cells = ms(g.ms), it = g.ms.length > 1 ? '這些格子' : '這格';
+  const cells = ms(g.ms), several = g.ms.length > 1, it = several ? '這些格子' : '這格';
   if (g.type === 'diff') return `${cells}：題目是 ${g.want}，你的式子算出 ${1 - g.want}。`;
-  const many = g.terms && g.terms.length > 1, who = g.type === 'over' ? g.terms.map(termSpan).join('、') : '';
-  if (g.shape === 'SOP') return g.type === 'over'
-    ? `${who} ${many ? '都' : '這一項'}包含 ${cells}，但題目在${it}是 0，所以你的式子算出 1。也就是${many ? '這幾個圈' : '這個圈'}圈到了 0，要縮小或換個圈法。`
-    : `${cells} 題目是 1，但你的式子沒有任何一項包含${it}，所以算出 0。也就是${g.ms.length > 1 ? '這些 1' : '這個 1'} 還沒被圈到。`;
-  return g.type === 'over'
-    ? `和項 ${who} ${many ? '都' : ''}在 ${cells} 為 0，但題目在${it}是 1，所以你的式子算出 0。也就是${many ? '這幾個圈' : '這個圈'}圈到了 1（POS 只能圈 0 和 X）。`
-    : `${cells} 題目是 0，但你的式子沒有任何和項在${it}為 0，所以算出 1。也就是${g.ms.length > 1 ? '這些 0' : '這個 0'} 還沒被圈到。`;
+  const text = GROUP_TEXT[g.shape];
+  if (g.type === 'under') return text.under(cells, it, several);
+  return text.over(g.terms.map(termSpan).join('、'), cells, it, g.terms.length > 1);
 }
 function feedbackHTML(r) {
   const ms = a => a.map(m => 'm' + m).join('、');
@@ -854,7 +870,8 @@ function feedbackHTML(r) {
     case 'syntax': return `<div class="fb warn"><p><b>語法錯誤</b>：${esc(r.msg)}（第 ${r.pos + 1} 個字元附近）。</p></div>`;
     case 'wrong': {
       const cnt = r.extra.length + r.miss.length;
-      return `<div class="fb bad"><p><b>不等價</b>：你的式子在 ${cnt} 個格子上和題目不同，K-map 上用紅框標出。</p><ul>${r.groups.map(g => `<li>${groupHTML(g, ms)}</li>`).join('')}</ul></div>`;
+      const items = r.groups.map(g => '<li>' + groupHTML(g, ms) + '</li>').join('');
+      return `<div class="fb bad"><p><b>不等價</b>：你的式子在 ${cnt} 個格子上和題目不同，K-map 上用紅框標出。</p><ul>${items}</ul></div>`;
     }
     case 'form': return `<div class="fb warn"><p><b>等價，但不是 ${P.form} 形式</b>。請寫成${P.form === 'SOP' ? "像 AB' + C'D 這樣的積之和" : "像 (A+B')(C+D) 這樣的和之積"}。</p></div>`;
     case 'notmin': {
