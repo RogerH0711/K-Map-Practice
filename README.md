@@ -8,6 +8,14 @@
 
 TAICA「生成式AI：文字與圖像生成的原理與實務」第五週作業：先和 AI 討論出規格書，再用 Vibe Coding 實作，最後以 GitHub Pages 公開。本檔就是規格書全文，內容與目前線上的成品一致。
 
+## 畫面截圖
+
+| 化簡模式：多解切換與連動標示 | 化簡過程（Quine–McCluskey） |
+| --- | --- |
+| <img src="screenshots/multi-solution-hover.png" alt="3 變數 m(0,1,2,5,6,7) 切到解 2，滑鼠移到 B'C 時，對應的圈與閘一起標示" width="420"> | <img src="screenshots/qm-steps.png" alt="m(0,2,8,10) 的逐輪合併表與 prime implicant chart，最簡解 B'D'" width="300"> |
+| **練習模式：答錯時指出哪一個圈錯** | **手機版** |
+| <img src="screenshots/practice-feedback.png" alt="題目 Σm(5,7,14,15) 作答 BD + ABC，說明 BD 這一項包含 m13，m13 加紅框" width="420"> | <img src="screenshots/mobile.png" alt="手機版單欄排列的化簡模式" width="200"> |
+
 ---
 
 ## 1. 專案概述

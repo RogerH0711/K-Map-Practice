@@ -38,7 +38,7 @@ TAICA「生成式AI：文字與圖像生成的原理與實務」第五週作業�
 | GitHub repo | 已建立 `RogerH0711/K-Map-Practice`，`index.html` v0.1 已在 main；2026-10-07 在 Claude Code 重跑第 5 節全部測試通過 |
 | GitHub Pages | 已上線：https://rogerh0711.github.io/K-Map-Practice/ （repo 改為 public 後啟用，從 main / root 發布）。2026-10-07 確認：線上檔案與 main 的 `index.html` 完全相同；用 Chromium 開線上網址，1280 px 與 375 px 都能正常化簡、無水平捲動、無 console error；使用者本人也已用瀏覽器開啟確認 |
 | 手機實測、使用者回饋 | 本人實測無問題，iPhone 實機操作正常（AC18）；朋友回饋「不等價的解釋很奇怪」→ v0.2 |
-| 截圖、繳交文字 | 2026-10-07 已用 Playwright 對線上網址截圖 4 張（多解切換與連動標示、化簡過程、練習回饋、手機版），並擬好繳交文字草稿（HTML，複製後貼進 NTU COOL）；都只交給使用者，沒有放進 repo。待使用者填學號、姓名後送出 |
+| 截圖、繳交文字 | 2026-10-07 已用 Playwright 對線上網址截圖 4 張（多解切換與連動標示、化簡過程、練習回饋、手機版），並擬好繳交文字草稿（HTML，複製後貼進 NTU COOL）；截圖另存一份在 repo 的 `screenshots/`，README 開頭的「畫面截圖」引用。使用者已把截圖上傳到 NTU COOL 編輯器並貼上繳交文字 |
 
 ---
 
