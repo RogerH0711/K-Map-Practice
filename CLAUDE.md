@@ -34,7 +34,8 @@ TAICA「生成式AI：文字與圖像生成的原理與實務」第五週作業�
 | --- | --- |
 | 規格書 v1.1 | 完成（完整內容見第 3 節；原始文件在 claude.ai Docs「K-Map Practice 規格書」） |
 | `index.html` v0.1 | 完成；AC1–AC18 全數通過，桌機 1280 px 與手機 375 px 截圖檢查無誤、無 console error |
-| GitHub repo / Pages | 尚未建立 |
+| GitHub repo | 已建立 `RogerH0711/K-Map-Practice`，`index.html` v0.1 已在 main；2026-10-07 在 Claude Code 重跑第 5 節全部測試通過 |
+| GitHub Pages | 尚未確認是否啟用；預期網址 `https://rogerh0711.github.io/K-Map-Practice/` |
 | 手機實測、使用者回饋 | 尚未 |
 | 截圖、繳交文字 | 尚未 |
 
@@ -164,7 +165,7 @@ F1–F8 屬於「化簡模式」，F9 為「練習模式」，F10 為整體介�
 
 ## 5. 測試方式
 
-每輪修改後都要跑，結果寫進迭代紀錄。
+每輪修改後都要跑，結果寫進迭代紀錄。測試腳本與執行指令在 `tests/`（見 `tests/README.md`）。
 
 1. **邏輯測試（Node）**：用 Python 把 `index.html` 的 `<script>` 內容抽出成 `km.js`，`require` 後跑：
    - AC1、AC3–AC17 的測資逐條比對（POS 比對前先去掉空白）
@@ -173,6 +174,10 @@ F1–F8 屬於「化簡模式」，F9 為「練習模式」，F10 為整體介�
 2. **畫面測試（Playwright + Chromium）**：開 `file://.../index.html`，截圖 1280×900 桌機與 375×812 手機；檢查 `document.documentElement.scrollWidth === 375`、沒有 `pageerror` 與 console error；操作切換解、切 POS、展開化簡過程、練習模式送出錯誤答案與看解答，各截一張圖目視檢查。
 
 v0.1 的測試結果：上述全部通過。
+
+已知、尚未處理的小問題（2026-10-07 重測時發現，不影響 AC）：
+- 函數本身是常數（例如全 1 加 X）時，`judge` 對答案 `1`／`0` 回傳 `form` 而非 `correct`。練習模式的 `randomProblem` 不會出常數題，所以使用者碰不到。
+- 多解時項的顯示順序依 PI 排序，例如 AC7 顯示為 `A'B' + CD`，與規格寫的 `CD + A'B'` 順序不同（內容相同）。
 
 ---
 
@@ -190,8 +195,8 @@ v0.1 的測試結果：上述全部通過。
 
 ## 7. 接下來要做
 
-- [ ] 建 GitHub public repo（建議 `kmap-practice`），放入 `index.html`，commit「v0.1 初版」並 push
-- [ ] Settings → Pages → Deploy from a branch → main / (root)；預期網址 `https://rogerh0711.github.io/kmap-practice/`
+- [x] 建 GitHub public repo `RogerH0711/K-Map-Practice`，`index.html` 已在 main
+- [ ] Settings → Pages → Deploy from a branch → main / (root)；預期網址 `https://rogerh0711.github.io/K-Map-Practice/`
 - [ ] 用手機與電腦實際操作，收集想改的地方 → 第二輪修改（v0.2），每輪一個 commit
 - [ ] 規格書同步更新到與成品一致，可放一份到 repo 的 `README.md`
 - [ ] 向成大助教確認本週 `.ipynb` 規定要改交什麼
