@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K-Map Practice</title>
+<meta name="description" content="卡諾圖化簡與練習：2–4 變數，即時列出所有最簡 SOP／POS、Quine–McCluskey 化簡過程與邏輯閘電路。">
+<style>
+:root{
+  --paper:#f3f5ee;
+  --grid:#e2e9dc;
+  --ink:#1f2b4d;
+  --ink2:#5c6785;
+  --line:#bcc6b5;
+  --sheet:#fbfcf8;
+  --ok:#2e7d4f;
+  --err:#c2372d;
+  --warn:#9a6200;
+  --focus:#2b6cff;
+  --cell:64px;
+  --serif:"Cambria Math","STIX Two Math","STIX Two Text","Times New Roman",Times,serif;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.6;
+  background-color:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;
+}
+[hidden]{display:none!important}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+button,input{font:inherit;color:inherit}
+h2{font-size:1.05rem;margin:0 0 8px;font-weight:700}
+h3{font-size:.95rem;margin:20px 0 8px;font-weight:700;color:var(--ink2)}
+
+/* header */
+.top{max-width:1180px;margin:0 auto;padding:28px 20px 0;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+.brand h1{margin:0;font-family:var(--serif);font-style:italic;font-weight:700;font-size:2.5rem;line-height:1.1}
+.brand p{margin:4px 0 0;color:var(--ink2)}
+.tabs{display:flex;gap:4px}
+.tabs button{border:0;background:transparent;padding:8px 18px 10px;cursor:pointer;font-size:1.05rem;color:var(--ink2);border-bottom:3px solid transparent;min-height:44px}
+.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+main{max-width:1180px;margin:0 auto;padding:0 20px 40px}
+
+/* controls */
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;padding:16px 0;border-top:1.5px solid var(--ink);margin-bottom:24px}
+.seg{display:inline-flex;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;background:var(--sheet)}
+.seg button{border:0;background:transparent;padding:6px 14px;cursor:pointer;min-height:40px}
+.seg button+button{border-left:1.5px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.check{display:inline-flex;align-items:center;gap:6px;min-height:40px;cursor:pointer}
+.check input{width:18px;height:18px;accent-color:var(--ink)}
+.btn{border:1.5px solid var(--ink);background:var(--sheet);border-radius:8px;padding:8px 16px;cursor:pointer;min-height:44px}
+.btn.primary{background:var(--ink);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.score{margin-left:auto;color:var(--ink2)}
+.score b{color:var(--ink);font-size:1.15rem}
+
+/* layout */
+.layout{display:grid;grid-template-columns:auto minmax(0,1fr);gap:48px;align-items:start}
+.left{display:flex;flex-direction:column;gap:10px;min-width:0}
+.right{min-width:0}
+@media (max-width:880px){.layout{grid-template-columns:minmax(0,1fr);gap:28px}}
+
+/* K-map */
+.km{display:grid;grid-template-columns:auto calc(var(--cols)*var(--cell));grid-template-rows:auto calc(var(--rows)*var(--cell));width:max-content;margin:4px 0 6px}
+.km-corner{position:relative;width:58px;height:42px;font-family:var(--serif);font-style:italic;color:var(--ink2);
+  background:linear-gradient(to top right,transparent calc(50% - .75px),var(--line) 50%,transparent calc(50% + .75px))}
+.km-corner .rv{position:absolute;left:4px;bottom:0}
+.km-corner .cv{position:absolute;right:6px;top:0}
+.km-colhead{display:grid;grid-template-columns:repeat(var(--cols),var(--cell))}
+.km-rowhead{display:grid;grid-template-rows:repeat(var(--rows),var(--cell))}
+.km-colhead span,.km-rowhead span{display:flex;font-family:var(--serif);color:var(--ink2);font-size:1.05rem}
+.km-colhead span{align-items:flex-end;justify-content:center;padding-bottom:4px}
+.km-rowhead span{align-items:center;justify-content:flex-end;padding-right:10px}
+.km-body{position:relative}
+.km-cells{display:grid;grid-template-columns:repeat(var(--cols),var(--cell));grid-template-rows:repeat(var(--rows),var(--cell));box-shadow:0 0 0 2px var(--ink);background:var(--sheet)}
+.cell{position:relative;border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:transparent;padding:0;
+  display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:1.65rem;cursor:pointer;touch-action:manipulation}
+.cell.lc{border-right:0}.cell.lr{border-bottom:0}
+.cell .no{position:absolute;z-index:2;left:5px;top:2px;font-family:var(--sans);font-size:.68rem;color:var(--ink2);line-height:1.2}
+.cell.v0 .val{color:#aab2a4}
+.cell.v1 .val{font-weight:700}
+.cell.vx .val{font-style:italic;color:var(--warn)}
+.cell.bad{box-shadow:inset 0 0 0 3px var(--err)}
+.km.ro .cell{cursor:default}
+@media (hover:hover){.km:not(.ro) .cell:hover{background:rgba(31,43,77,.06)}}
+.km-groups{position:absolute;z-index:1;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.km-groups rect{fill:var(--c);fill-opacity:.2;stroke:var(--c);stroke-width:3;vector-effect:non-scaling-stroke;transition:fill-opacity .15s,opacity .15s}
+.km-groups .grp.hl rect{fill-opacity:.42;stroke-width:5}
+.km-groups.has-hl .grp:not(.hl){opacity:.18}
+
+/* inputs */
+label.fl{font-weight:700;font-size:.95rem;margin-top:6px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.txt{flex:1 1 220px;min-width:0;border:1.5px solid var(--ink);border-radius:8px;background:var(--sheet);padding:8px 12px;font-family:var(--serif);font-size:1.15rem;min-height:44px}
+.txt.bad{border-color:var(--err)}
+.msg{margin:0;min-height:1.6em;font-size:.92rem}
+.msg.err{color:var(--err)}
+.hint{margin:0;color:var(--ink2);font-size:.9rem}
+
+/* results */
+.expr{font-family:var(--serif);font-size:2rem;line-height:1.45;word-break:break-word;margin:4px 0}
+.expr i{font-style:italic}
+.expr .t{border-bottom:4px solid var(--c);padding:0 3px;border-radius:2px;cursor:default;transition:background-color .15s}
+.expr .t.hl{background:color-mix(in srgb,var(--c) 28%,transparent)}
+.expr.has-hl .t:not(.hl){opacity:.45}
+.meta{color:var(--ink2);font-size:.92rem;margin:0 0 8px}
+.soltabs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 8px}
+.soltabs span{color:var(--ink2);font-size:.92rem;margin-right:4px}
+.soltabs button{border:1.5px solid var(--ink);background:var(--sheet);border-radius:999px;padding:2px 14px;min-height:36px;cursor:pointer}
+.soltabs button[aria-pressed="true"]{background:var(--ink);color:#fff}
+table.tb{border-collapse:collapse;background:var(--sheet);font-size:.92rem}
+table.tb th,table.tb td{border:1px solid var(--line);padding:4px 10px;text-align:center;white-space:nowrap}
+table.tb th{font-weight:700;background:#eef1e8}
+table.tb td.e{font-family:var(--serif);font-size:1.05rem;text-align:left}
+table.tb tr.ess td{background:#fff6d6}
+table.tb tr.gs td{border-top:2px solid var(--ink2)}
+table.tb th.only{background:#ffe9a8}
+.tag{display:inline-block;font-size:.75rem;border:1px solid var(--ink2);border-radius:4px;padding:0 5px;margin-left:6px;font-family:var(--sans);color:var(--ink2);vertical-align:middle}
+.tag.use{border-color:var(--ok);color:var(--ok)}
+.dcm{font-style:italic;color:var(--warn)}
+.scroll{overflow-x:auto;max-width:100%}
+details.steps{margin-top:20px;border-top:1px solid var(--line);padding-top:10px}
+details.steps summary{cursor:pointer;font-weight:700;min-height:36px;display:flex;align-items:center}
+.rounds{display:flex;gap:16px;align-items:flex-start;padding-bottom:6px}
+.rounds caption{font-weight:700;text-align:left;padding:4px 0}
+.steps h4{margin:16px 0 6px;font-size:.95rem}
+.steps p,.steps li{font-size:.95rem}
+.circuit{background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:10px;overflow-x:auto}
+.circuit svg{display:block;max-width:100%;height:auto}
+.circuit .w{stroke:var(--ink);stroke-width:1.6;fill:none}
+.circuit .gate{stroke:var(--ink);stroke-width:1.8;fill:#fff}
+.circuit .dot{fill:var(--ink)}
+.circuit .vl{font-family:var(--serif);font-style:italic;font-size:17px;fill:var(--ink)}
+.circuit .vl.s{font-size:13px}
+.circuit .term{transition:opacity .15s}
+.circuit svg.has-hl .term:not(.hl){opacity:.22}
+.circuit .term.hl .w{stroke-width:2.8}
+.const{margin:0;color:var(--ink2)}
+
+/* practice */
+.prob{font-family:var(--serif);font-size:1.25rem;margin:4px 0 0}
+.fb{margin:12px 0;padding:10px 14px;border-left:4px solid var(--ink2);background:var(--sheet);font-size:.98rem}
+.fb.ok{border-color:var(--ok)}.fb.ok b{color:var(--ok)}
+.fb.bad{border-color:var(--err)}.fb.bad b{color:var(--err)}
+.fb.warn{border-color:var(--warn)}.fb.warn b{color:var(--warn)}
+.fb p{margin:2px 0}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px}
+.solution{border-top:1px solid var(--line);padding-top:14px;margin-top:6px}
+
+footer{max-width:1180px;margin:0 auto;padding:20px 20px 40px;color:var(--ink2);font-size:.9rem}
+footer .inner{border-top:1.5px solid var(--ink);padding-top:12px}
+footer summary{cursor:pointer;font-weight:700;color:var(--ink);min-height:36px;display:flex;align-items:center}
+footer ul{margin:4px 0 8px;padding-left:20px}
+
+@media (max-width:560px){
+  :root{--cell:min(62px,calc((100vw - 104px)/4))}
+  .brand h1{font-size:2rem}
+  .expr{font-size:1.6rem}
+  .score{margin-left:0;width:100%}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>K-Map Practice</h1>
+    <p>卡諾圖化簡與練習，支援 2–4 變數</p>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="模式">
+    <button role="tab" id="tabS" aria-selected="true" aria-controls="simplify" data-mode="simplify">化簡</button>
+    <button role="tab" id="tabP" aria-selected="false" aria-controls="practice" data-mode="practice">練習</button>
+  </nav>
+</header>
+
+<main>
+  <!-- 化簡模式 -->
+  <section id="simplify" role="tabpanel" aria-labelledby="tabS">
+    <div class="controls">
+      <div class="seg" id="nSegS" role="group" aria-label="變數數量">
+        <button data-n="2">2 變數</button><button data-n="3">3 變數</button><button data-n="4">4 變數</button>
+      </div>
+      <div class="seg" id="formSegS" role="group" aria-label="化簡形式">
+        <button data-form="SOP">SOP（圈 1）</button><button data-form="POS">POS（圈 0）</button>
+      </div>
+    </div>
+    <div class="layout">
+      <div class="left">
+        <div id="kmapS"></div>
+        <label class="fl" for="mdInput">m()／d() 輸入</label>
+        <div class="row">
+          <input id="mdInput" class="txt" type="text" placeholder="例如 m(0,2,8,10)+d(5)" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button id="clearBtn" class="btn">清空</button>
+        </div>
+        <p id="mdMsg" class="msg" aria-live="polite"></p>
+        <p class="hint">點格子切換 0 → 1 → X，X 代表 don't care。</p>
+      </div>
+      <div class="right" id="resS">
+        <h2>最簡解</h2>
+        <div id="solTabsS" class="soltabs"></div>
+        <div id="exprS" class="expr" aria-live="polite"></div>
+        <p id="metaS" class="meta"></p>
+        <h3>Prime implicants</h3>
+        <div class="scroll" id="piS"></div>
+        <details class="steps" id="stepsS">
+          <summary>化簡過程（Quine–McCluskey）</summary>
+          <div id="stepsBodyS"></div>
+        </details>
+        <h3>邏輯閘電路</h3>
+        <div class="circuit" id="circS"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 練習模式 -->
+  <section id="practice" role="tabpanel" aria-labelledby="tabP" hidden>
+    <div class="controls">
+      <div class="seg" id="nSegP" role="group" aria-label="變數數量">
+        <button data-n="2">2 變數</button><button data-n="3">3 變數</button><button data-n="4">4 變數</button>
+      </div>
+      <label class="check"><input type="checkbox" id="dcP"> 含 don't care</label>
+      <div class="seg" id="formSegP" role="group" aria-label="作答形式">
+        <button data-form="SOP">答 SOP</button><button data-form="POS">答 POS</button>
+      </div>
+      <button id="newBtn" class="btn primary">出新題目</button>
+      <p class="score" id="scoreP" aria-live="polite"></p>
+    </div>
+    <div class="layout">
+      <div class="left">
+        <div id="kmapP"></div>
+        <p id="probP" class="prob"></p>
+      </div>
+      <div class="right" id="resP">
+        <label class="fl" for="ansInput" id="ansLabel">你的答案</label>
+        <div class="row" style="margin-top:6px">
+          <input id="ansInput" class="txt" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <button id="submitBtn" class="btn primary">送出</button>
+        </div>
+        <div id="fbP" aria-live="polite"></div>
+        <div class="actions">
+          <button id="showBtn" class="btn">看解答</button>
+          <button id="nextBtn" class="btn">下一題</button>
+        </div>
+        <div id="solP" class="solution" hidden>
+          <h2>解答</h2>
+          <div id="solTabsP" class="soltabs"></div>
+          <div id="exprP" class="expr"></div>
+          <p id="metaP" class="meta"></p>
+          <h3>邏輯閘電路</h3>
+          <div class="circuit" id="circP"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="inner">
+    <details>
+      <summary>使用說明</summary>
+      <ul>
+        <li>化簡：點格子或輸入 m()/d()，右側會即時列出所有最簡解，K-map 上同步畫出圈法。</li>
+        <li>把滑鼠移到算式中的某一項（手機上點一下），K-map 上對應的圈與電路中的邏輯閘會一起標示出來。</li>
+        <li>最簡的定義：項數最少；項數相同時，literal 總數最少。</li>
+        <li>練習：選好設定後按「出新題目」，輸入答案後送出。補數寫成 A'（也可以用 ~A、!A），AND 直接相連或用 *，OR 用 +，POS 用括號，例如 (A+B')(C+D)。</li>
+      </ul>
+    </details>
+    <p>K-Map Practice 版本 v0.1</p>
+  </div>
+</footer>
+
+<script>
+'use strict';
+/* ========== 基本定義 ========== */
+const VARS = ['A', 'B', 'C', 'D'];
+const COLORS = ['#e0a800', '#e5478c', '#1b9fd0', '#34a058', '#ee7426', '#8a5fe6', '#d0423c', '#12998a', '#7d8c17', '#b04cc2'];
+const GRAY = { 1: ['0', '1'], 2: ['00', '01', '11', '10'] };
+
+function pop(x) { let c = 0; while (x) { x &= x - 1; c++; } return c; }
+function kLayout(n) {
+  const rb = n === 4 ? 2 : 1, cb = n - rb;
+  return { n, rb, cb, rowCodes: GRAY[rb], colCodes: GRAY[cb], rowVars: VARS.slice(0, rb).join(''), colVars: VARS.slice(rb, n).join('') };
+}
+function cellMinterm(L, r, c) { return parseInt(L.rowCodes[r] + L.colCodes[c], 2); }
+function litCount(t, n) { return n - pop(t.mask); }
+function pattern(t, n) {
+  let s = '';
+  for (let i = n - 1; i >= 0; i--) { const b = 1 << i; s += (t.mask & b) ? '-' : ((t.v & b) ? '1' : '0'); }
+  return s;
+}
+// 項 → literal 清單；SOP 時 bit=0 為補數，POS（對 F' 的項取補）時 bit=1 為補數
+function literals(t, n, form) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const b = 1 << (n - 1 - i);
+    if (t.mask & b) continue;
+    const one = !!(t.v & b);
+    out.push({ i, neg: form === 'SOP' ? !one : one });
+  }
+  return out;
+}
+function litStr(l) { return VARS[l.i] + (l.neg ? "'" : ''); }
+function termStr(t, n, form) {
+  const ls = literals(t, n, form);
+  if (form === 'SOP') return ls.length ? ls.map(litStr).join('') : '1';
+  return ls.length ? '(' + ls.map(litStr).join('+') + ')' : '0';
+}
+function exprStr(sol, n, form) {
+  if (!sol.length) return form === 'SOP' ? '0' : '1';
+  return sol.map(t => termStr(t, n, form)).join(form === 'SOP' ? ' + ' : '');
+}
+function solCost(sol, n) { return { terms: sol.length, lits: sol.reduce((s, t) => s + litCount(t, n), 0) }; }
+
+/* ========== Quine–McCluskey + Petrick ========== */
+function combos(arr, k, cb, start = 0, acc = []) {
+  if (acc.length === k) { cb(acc); return; }
+  for (let i = start; i <= arr.length - (k - acc.length); i++) { acc.push(arr[i]); combos(arr, k, cb, i + 1, acc); acc.pop(); }
+}
+function solve(n, vals, form) {
+  const N = 1 << n, want = form === 'SOP' ? 1 : 0;
+  const req = [], dc = [];
+  for (let m = 0; m < N; m++) { if (vals[m] === 2) dc.push(m); else if (vals[m] === want) req.push(m); }
+  const base = { n, form, req, dc, rounds: [], pis: [], ess: [], remaining: [], cand: [], kMin: 0, covers: [[]], solutions: [[]] };
+  if (!req.length) return base;
+  const reqSet = new Set(req);
+  const rounds = [], unmerged = [];
+  let cur = [...req, ...dc].map(m => ({ v: m, mask: 0, cov: [m], used: false }))
+    .sort((a, b) => pop(a.v) - pop(b.v) || a.v - b.v);
+  while (cur.length) {
+    rounds.push(cur);
+    const next = [], seen = new Map();
+    for (let i = 0; i < cur.length; i++) for (let j = i + 1; j < cur.length; j++) {
+      const a = cur[i], b = cur[j];
+      if (a.mask !== b.mask) continue;
+      const diff = a.v ^ b.v;
+      if (diff && (diff & (diff - 1)) === 0) {
+        a.used = b.used = true;
+        const mask = a.mask | diff, v = a.v & ~diff, key = v + '|' + mask;
+        if (!seen.has(key)) {
+          const t = { v, mask, cov: [...new Set([...a.cov, ...b.cov])].sort((x, y) => x - y), used: false };
+          seen.set(key, t); next.push(t);
+        }
+      }
+    }
+    for (const t of cur) if (!t.used) unmerged.push(t);
+    next.sort((a, b) => pop(a.v) - pop(b.v) || a.cov[0] - b.cov[0] || a.mask - b.mask);
+    cur = next;
+  }
+  const pis = unmerged.filter(t => t.cov.some(m => reqSet.has(m)))
+    .sort((a, b) => litCount(a, n) - litCount(b, n) || a.cov[0] - b.cov[0] || a.mask - b.mask);
+  const essSet = new Set();
+  for (const m of req) { const cs = pis.filter(p => p.cov.includes(m)); if (cs.length === 1) essSet.add(cs[0]); }
+  const ess = pis.filter(p => essSet.has(p));
+  const covered = new Set(ess.flatMap(p => p.cov));
+  const remaining = req.filter(m => !covered.has(m));
+  const remSet = new Set(remaining);
+  const cand = pis.filter(p => !essSet.has(p) && p.cov.some(m => remSet.has(m)));
+  let covers = [], kMin = 0;
+  if (!remaining.length) covers = [[]];
+  else {
+    for (let k = 1; k <= cand.length && !covers.length; k++) {
+      combos(cand, k, c => { if (remaining.every(m => c.some(p => p.cov.includes(m)))) covers.push(c.slice()); });
+      kMin = k;
+    }
+  }
+  const order = t => pis.indexOf(t);
+  let sols = covers.map(c => [...ess, ...c].sort((a, b) => order(a) - order(b)));
+  const minL = Math.min(...sols.map(s => solCost(s, n).lits));
+  sols = sols.filter(s => solCost(s, n).lits === minL).slice(0, 64);
+  if (form === 'POS') {
+    // POS 依變數順序排列和項，例如 (B')(D') 而不是 (D')(B')
+    const key = t => literals(t, n, form).map(l => l.i * 2 + (l.neg ? 1 : 0));
+    const cmp = (a, b) => { const x = key(a), y = key(b); for (let q = 0; q < Math.min(x.length, y.length); q++) if (x[q] !== y[q]) return x[q] - y[q]; return x.length - y.length; };
+    sols = sols.map(s => s.slice().sort(cmp));
+  }
+  return { ...base, rounds, pis, ess, remaining, cand, kMin, covers, solutions: sols, unmerged };
+}
+
+/* ========== m()/d() 解析 ========== */
+function parseMD(src, n) {
+  const max = (1 << n) - 1;
+  const s = src.replace(/[，、]/g, ',').replace(/（/g, '(').replace(/）/g, ')').replace(/＋/g, '+')
+    .replace(/[Σ∑]/g, '').replace(/\s+/g, '');
+  if (s === '') return { ok: true, ones: [], dcs: [] };
+  const ones = new Set(), dcs = new Set();
+  for (const part of s.split('+')) {
+    const mt = /^([mMdD])\(([0-9,]*)\)$/.exec(part);
+    if (!mt) return { ok: false, msg: '格式應為 m(0,2,8,10)+d(5)，請檢查括號與逗號。' };
+    const target = mt[1].toLowerCase() === 'm' ? ones : dcs;
+    for (const tok of mt[2].split(',')) {
+      if (tok === '') continue;
+      const k = Number(tok);
+      if (k > max) return { ok: false, msg: `編號 ${k} 超出 0–${max} 的範圍。` };
+      target.add(k);
+    }
+  }
+  for (const k of ones) if (dcs.has(k)) return { ok: false, msg: `編號 ${k} 同時出現在 m() 和 d()。` };
+  return { ok: true, ones: [...ones].sort((a, b) => a - b), dcs: [...dcs].sort((a, b) => a - b) };
+}
+function valsFromMD(r, n) { const v = Array(1 << n).fill(0); r.ones.forEach(k => v[k] = 1); r.dcs.forEach(k => v[k] = 2); return v; }
+function canonicalMD(vals) {
+  const ones = [], dcs = [];
+  vals.forEach((v, m) => { if (v === 1) ones.push(m); else if (v === 2) dcs.push(m); });
+  if (!ones.length && !dcs.length) return '';
+  return `m(${ones.join(',')})` + (dcs.length ? `+d(${dcs.join(',')})` : '');
+}
+
+/* ========== 布林式解析（練習模式） ========== */
+function parseExpr(src, n) {
+  const s = src.replace(/[’′‘`´]/g, "'").replace(/＋/g, '+').replace(/（/g, '(').replace(/）/g, ')')
+    .replace(/[·•∙⋅×.]/g, '*').replace(/[¬～]/g, '~');
+  const toks = [];
+  for (let p = 0; p < s.length; p++) {
+    const ch = s[p];
+    if (/\s/.test(ch)) continue;
+    if (/[a-zA-Z]/.test(ch)) {
+      const i = VARS.indexOf(ch.toUpperCase());
+      if (i < 0 || i >= n) throw { msg: `「${ch}」不是這題的變數，只能用 ${VARS.slice(0, n).join('、')}`, pos: p };
+      toks.push({ t: 'var', i, pos: p });
+    } else if (ch === '0' || ch === '1') toks.push({ t: 'const', v: +ch, pos: p });
+    else if ("'+*()~!".includes(ch)) toks.push({ t: ch, pos: p });
+    else throw { msg: `無法辨識的符號「${ch}」`, pos: p };
+  }
+  if (!toks.length) throw { msg: '請先輸入式子', pos: 0 };
+  let k = 0;
+  const peek = () => toks[k], end = () => k >= toks.length;
+  const startsFactor = t => t && (t.t === 'var' || t.t === 'const' || t.t === '(' || t.t === '~' || t.t === '!');
+  function sum() {
+    const items = [prod()];
+    while (!end() && peek().t === '+') {
+      const op = toks[k++];
+      if (end()) throw { msg: '「+」後面少了一項', pos: op.pos };
+      items.push(prod());
+    }
+    return items.length === 1 ? items[0] : { op: 'or', items };
+  }
+  function prod() {
+    const items = [factor()];
+    for (;;) {
+      if (!end() && peek().t === '*') {
+        const op = toks[k++];
+        if (end()) throw { msg: '「*」後面少了一個因子', pos: op.pos };
+        items.push(factor());
+      } else if (startsFactor(peek())) items.push(factor());
+      else break;
+    }
+    return items.length === 1 ? items[0] : { op: 'and', items };
+  }
+  function factor() {
+    if (end()) throw { msg: '式子在結尾不完整', pos: s.length - 1 };
+    const t = peek();
+    if (t.t === '~' || t.t === '!') { k++; return { op: 'not', a: factor() }; }
+    let node;
+    if (t.t === 'var') { k++; node = { op: 'var', i: t.i }; }
+    else if (t.t === 'const') { k++; node = { op: 'const', v: t.v }; }
+    else if (t.t === '(') {
+      k++;
+      if (!end() && peek().t === ')') throw { msg: '括號裡是空的', pos: peek().pos };
+      node = sum();
+      if (end() || peek().t !== ')') throw { msg: '少了右括號「)」', pos: end() ? s.length - 1 : peek().pos };
+      k++;
+    } else throw { msg: `這裡應該是變數或左括號，卻出現「${t.t}」`, pos: t.pos };
+    while (!end() && peek().t === "'") { k++; node = { op: 'not', a: node }; }
+    return node;
+  }
+  const ast = sum();
+  if (!end()) throw { msg: `多出了「${peek().t === 'var' ? VARS[peek().i] : peek().t}」`, pos: peek().pos };
+  return ast;
+}
+function evalNode(node, m, n) {
+  switch (node.op) {
+    case 'var': return (m >> (n - 1 - node.i)) & 1;
+    case 'const': return node.v;
+    case 'not': return 1 - evalNode(node.a, m, n);
+    case 'and': return node.items.every(x => evalNode(x, m, n)) ? 1 : 0;
+    case 'or': return node.items.some(x => evalNode(x, m, n)) ? 1 : 0;
+  }
+}
+const isLit = x => x.op === 'var' || (x.op === 'not' && x.a.op === 'var');
+function sopCost(ast) {
+  const terms = ast.op === 'or' ? ast.items : [ast];
+  let lits = 0;
+  for (const t of terms) { const fs = t.op === 'and' ? t.items : [t]; if (!fs.every(isLit)) return null; lits += fs.length; }
+  return { terms: terms.length, lits };
+}
+function posCost(ast) {
+  const terms = ast.op === 'and' ? ast.items : [ast];
+  let lits = 0;
+  for (const t of terms) { const fs = t.op === 'or' ? t.items : [t]; if (!fs.every(isLit)) return null; lits += fs.length; }
+  return { terms: terms.length, lits };
+}
+function judge(n, vals, form, src) {
+  let ast;
+  try { ast = parseExpr(src, n); } catch (e) { return { kind: 'syntax', msg: e.msg, pos: e.pos }; }
+  const extra = [], miss = [];
+  for (let m = 0; m < (1 << n); m++) {
+    if (vals[m] === 2) continue;
+    const got = evalNode(ast, m, n);
+    if (got !== vals[m]) (got ? extra : miss).push(m);
+  }
+  if (extra.length || miss.length) return { kind: 'wrong', extra, miss };
+  const res = solve(n, vals, form), best = solCost(res.solutions[0], n);
+  const cost = form === 'SOP' ? sopCost(ast) : posCost(ast);
+  if (!cost) return { kind: 'form' };
+  const dt = cost.terms - best.terms, dl = cost.lits - best.lits;
+  if (dt < 0 || (dt === 0 && dl <= 0)) return { kind: 'correct' };
+  return { kind: 'notmin', dt, dl };
+}
+function randomProblem(n, withDc) {
+  for (;;) {
+    const v = [];
+    for (let m = 0; m < (1 << n); m++) v.push(withDc && Math.random() < 0.14 ? 2 : (Math.random() < 0.45 ? 1 : 0));
+    if (v.includes(1) && v.includes(0)) return v;
+  }
+}
+
+/* ========== 邏輯閘電路（SVG） ========== */
+function orBack(py, cy, h, w) { const t = (py - (cy - h / 2)) / h; return 2 * t * (1 - t) * w * 0.3; }
+function gatePath(type, x, cy, w, h, col) {
+  const top = cy - h / 2, bot = cy + h / 2;
+  const fill = col ? ` style="fill:${col};fill-opacity:.3"` : '';
+  if (type === 'and') {
+    const rx = Math.min(h / 2, w * 0.55);
+    return `<path class="gate"${fill} d="M${x},${top} H${x + w - rx} A${rx},${h / 2} 0 0 1 ${x + w - rx},${bot} H${x} Z"/>`;
+  }
+  return `<path class="gate"${fill} d="M${x},${top} Q${x + w * 0.3},${cy} ${x},${bot} Q${x + w * 0.58},${bot} ${x + w},${cy} Q${x + w * 0.58},${top} ${x},${top} Z"/>`;
+}
+function circuitSVG(n, sol, form) {
+  const terms = sol.map((t, j) => ({ j, lits: literals(t, n, form) }));
+  if (!terms.length || terms.some(t => !t.lits.length)) {
+    const v = exprStr(sol, n, form);
+    return `<p class="const">F = ${v} 是常數，不需要邏輯閘，輸出直接接${v === '1' ? '高電位（1）' : '低電位（0）'}。</p>`;
+  }
+  const g1 = form === 'SOP' ? 'and' : 'or', g2 = form === 'SOP' ? 'or' : 'and';
+  const tU = Array(n).fill(false), nU = Array(n).fill(false);
+  terms.forEach(t => t.lits.forEach(l => { (l.neg ? nU : tU)[l.i] = true; }));
+  const TOP = 30, gW = 48;
+  let x = 26; const bx = {}, nbx = {};
+  for (let i = 0; i < n; i++) {
+    if (!(tU[i] || nU[i])) continue;
+    bx[i] = x;
+    if (nU[i]) { nbx[i] = x + 24; x += 24 + 40; } else x += 38;
+  }
+  const g1x = x + 6, g1out = g1x + gW;
+  let y = TOP + 80;
+  terms.forEach(t => { const k = t.lits.length; t.h = k > 1 ? Math.max(30, k * 14 + 8) : 18; t.y = y + t.h / 2; y += t.h + 16; });
+  const busBottom = y - 10;
+  const P = [], G = terms.map(() => []);
+  for (let i = 0; i < n; i++) {
+    if (bx[i] === undefined) continue;
+    P.push(`<text x="${bx[i]}" y="${TOP - 12}" text-anchor="middle" class="vl">${VARS[i]}</text>`);
+    P.push(`<line class="w" x1="${bx[i]}" y1="${TOP - 6}" x2="${bx[i]}" y2="${tU[i] ? busBottom : TOP + 8}"/>`);
+    if (nU[i]) {
+      const cx = nbx[i];
+      P.push(`<path class="w" d="M${bx[i]},${TOP + 8} H${cx} V${TOP + 14}"/>`);
+      if (tU[i]) P.push(`<circle class="dot" cx="${bx[i]}" cy="${TOP + 8}" r="3"/>`);
+      P.push(`<path class="gate" d="M${cx - 8},${TOP + 14} L${cx + 8},${TOP + 14} L${cx},${TOP + 30} Z"/><circle class="gate" cx="${cx}" cy="${TOP + 34}" r="3.5"/>`);
+      P.push(`<line class="w" x1="${cx}" y1="${TOP + 37.5}" x2="${cx}" y2="${busBottom}"/>`);
+      P.push(`<text x="${cx + 7}" y="${TOP + 56}" class="vl s">${VARS[i]}'</text>`);
+    }
+  }
+  terms.forEach((t, j) => {
+    const col = COLORS[t.j % COLORS.length], k = t.lits.length;
+    if (k === 1) {
+      const l = t.lits[0], sx = l.neg ? nbx[l.i] : bx[l.i];
+      G[j].push(`<line class="w" x1="${sx}" y1="${t.y}" x2="${g1out}" y2="${t.y}"/><circle class="dot" cx="${sx}" cy="${t.y}" r="3"/>`);
+    } else {
+      t.lits.forEach((l, q) => {
+        const py = t.y - (k - 1) * 7 + q * 14, sx = l.neg ? nbx[l.i] : bx[l.i];
+        const ex = g1x + (g1 === 'or' ? orBack(py, t.y, t.h, gW) : 0);
+        G[j].push(`<line class="w" x1="${sx}" y1="${py}" x2="${ex}" y2="${py}"/><circle class="dot" cx="${sx}" cy="${py}" r="3"/>`);
+      });
+      G[j].push(gatePath(g1, g1x, t.y, gW, t.h, col));
+    }
+  });
+  const T = terms.length;
+  let outX, outY, x2;
+  if (T === 1) {
+    outY = terms[0].y; outX = g1out + 40;
+    G[0].push(`<line class="w" x1="${g1out}" y1="${outY}" x2="${outX}" y2="${outY}"/>`);
+  } else {
+    const H = Math.max(36, T * 14 + 10), Y = (terms[0].y + terms[T - 1].y) / 2;
+    const half = Math.floor((T - 1) / 2), rank = j => (j <= half ? j : T - 1 - j);
+    const maxR = Math.max(...terms.map((_, j) => rank(j)));
+    x2 = g1out + 22 + (maxR + 1) * 10;
+    terms.forEach((t, j) => {
+      const py = Y - (T - 1) * 7 + j * 14, xm = x2 - 10 - rank(j) * 10;
+      const ex = x2 + (g2 === 'or' ? orBack(py, Y, H, gW) : 0);
+      G[j].push(`<path class="w" d="M${g1out},${t.y} H${xm} V${py} H${ex}"/>`);
+    });
+    P.push(gatePath(g2, x2, Y, gW, H, null));
+    outY = Y; outX = x2 + gW + 36;
+    P.push(`<line class="w" x1="${x2 + gW}" y1="${Y}" x2="${outX}" y2="${Y}"/>`);
+  }
+  P.push(`<text x="${outX + 6}" y="${outY + 6}" class="vl">F</text>`);
+  const W = outX + 30, Hs = busBottom + 14;
+  const groups = terms.map((t, j) => `<g class="term" data-t="${t.j}">${G[j].join('')}</g>`).join('');
+  return `<svg viewBox="0 0 ${W} ${Hs}" width="${W}" height="${Hs}" role="img" aria-label="F = ${exprStr(sol, n, form)} 的兩層邏輯閘電路">${P.join('')}${groups}</svg>`;
+}
+
+/* ========== K-map 圈選幾何 ========== */
+function segments(S, L) {
+  if (S.length === L) return [{ a: 0, b: L - 1, os: false, oe: false }];
+  const runs = []; let st = S[0], pr = S[0];
+  for (let q = 1; q < S.length; q++) { if (S[q] === pr + 1) pr = S[q]; else { runs.push([st, pr]); st = pr = S[q]; } }
+  runs.push([st, pr]);
+  if (runs.length === 2 && runs[0][0] === 0 && runs[1][1] === L - 1)
+    return [{ a: runs[0][0], b: runs[0][1], os: true, oe: false }, { a: runs[1][0], b: runs[1][1], os: false, oe: true }];
+  return runs.map(([a, b]) => ({ a, b, os: false, oe: false }));
+}
+function groupSegs(t, L) {
+  const cmask = (1 << L.cb) - 1, rmask = (1 << L.rb) - 1;
+  const tvr = t.v >> L.cb, tmr = t.mask >> L.cb, tvc = t.v & cmask, tmc = t.mask & cmask;
+  const R = [], C = [];
+  L.rowCodes.forEach((code, r) => { if (((parseInt(code, 2) ^ tvr) & ~tmr & rmask) === 0) R.push(r); });
+  L.colCodes.forEach((code, c) => { if (((parseInt(code, 2) ^ tvc) & ~tmc & cmask) === 0) C.push(c); });
+  return { rs: segments(R, L.rowCodes.length), cs: segments(C, L.colCodes.length) };
+}
+
+/* ========== 畫面 ========== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function litHTML(l) { return `<i>${VARS[l.i]}</i>${l.neg ? "'" : ''}`; }
+function termHTML(t, n, form) {
+  const ls = literals(t, n, form);
+  if (form === 'SOP') return ls.length ? ls.map(litHTML).join('') : '1';
+  return ls.length ? '(' + ls.map(litHTML).join('+') + ')' : '0';
+}
+function exprHTML(sol, n, form, interactive) {
+  if (!sol.length || (sol.length === 1 && !literals(sol[0], n, form).length)) return 'F = ' + exprStr(sol, n, form);
+  const parts = sol.map((t, j) => interactive
+    ? `<span class="t" data-t="${j}" tabindex="0" style="--c:${COLORS[j % COLORS.length]}">${termHTML(t, n, form)}</span>`
+    : termHTML(t, n, form));
+  return 'F = ' + parts.join(form === 'SOP' ? ' + ' : '');
+}
+function renderKmap(host, o) {
+  const L = kLayout(o.n), R = L.rowCodes.length, C = L.colCodes.length;
+  let cells = '';
+  for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+    const m = cellMinterm(L, r, c), v = o.vals[m];
+    const cls = ['cell', v === 1 ? 'v1' : v === 2 ? 'vx' : 'v0'];
+    if (c === C - 1) cls.push('lc');
+    if (r === R - 1) cls.push('lr');
+    if (o.bad && o.bad.has(m)) cls.push('bad');
+    const txt = v === 1 ? '1' : v === 2 ? 'X' : '0';
+    const tag = o.readonly ? 'div' : 'button';
+    cells += `<${tag} class="${cls.join(' ')}" data-m="${m}" ${o.readonly ? 'role="img"' : 'type="button"'} aria-label="m${m}，目前是 ${txt}"><span class="no">${m}</span><span class="val">${txt}</span></${tag}>`;
+  }
+  let svg = '';
+  if (o.sol && o.sol.length) {
+    const W = C * 100, H = R * 100, cid = 'clip-' + o.id;
+    svg += `<defs><clipPath id="${cid}"><rect x="0" y="0" width="${W}" height="${H}"/></clipPath></defs><g clip-path="url(#${cid})">`;
+    o.sol.forEach((t, j) => {
+      const { rs, cs } = groupSegs(t, L), ins = 7 + (j % 3) * 5;
+      let rects = '';
+      for (const rr of rs) for (const cc of cs) {
+        const x1 = cc.os ? -60 : cc.a * 100 + ins, x2 = cc.oe ? W + 60 : (cc.b + 1) * 100 - ins;
+        const y1 = rr.os ? -60 : rr.a * 100 + ins, y2 = rr.oe ? H + 60 : (rr.b + 1) * 100 - ins;
+        rects += `<rect x="${x1}" y="${y1}" width="${x2 - x1}" height="${y2 - y1}" rx="22"/>`;
+      }
+      svg += `<g class="grp" data-t="${j}" style="--c:${COLORS[j % COLORS.length]}">${rects}</g>`;
+    });
+    svg += '</g>';
+  }
+  host.innerHTML = `<div class="km${o.readonly ? ' ro' : ''}" style="--cols:${C};--rows:${R}">
+    <div class="km-corner" aria-hidden="true"><span class="rv">${L.rowVars}</span><span class="cv">${L.colVars}</span></div>
+    <div class="km-colhead" aria-hidden="true">${L.colCodes.map(s => `<span>${s}</span>`).join('')}</div>
+    <div class="km-rowhead" aria-hidden="true">${L.rowCodes.map(s => `<span>${s}</span>`).join('')}</div>
+    <div class="km-body"><div class="km-cells">${cells}</div>
+    <svg class="km-groups" viewBox="0 0 ${C * 100} ${R * 100}" preserveAspectRatio="none" aria-hidden="true">${svg}</svg></div></div>`;
+}
+function solTabsHTML(count, sel) {
+  if (count <= 1) return '';
+  let h = `<span>共 ${count} 組最簡解</span>`;
+  for (let i = 0; i < count; i++) h += `<button type="button" data-sol="${i}" aria-pressed="${i === sel}">解 ${i + 1}</button>`;
+  return h;
+}
+function metaText(sol, n, form) {
+  if (!sol.length || !literals(sol[0], n, form).length) return '常數函數';
+  const c = solCost(sol, n);
+  return `${c.terms} 項、${c.lits} 個 literal`;
+}
+function covHTML(cov, dcSet) { return cov.map(m => dcSet.has(m) ? `<span class="dcm" title="don't care">d${m}</span>` : m).join(', '); }
+function piTableHTML(res, sol) {
+  const { n, form } = res;
+  if (!res.pis.length) return `<p class="meta">沒有需要涵蓋的格子。</p>`;
+  const dcSet = new Set(res.dc), essSet = new Set(res.ess), used = new Set(sol);
+  let h = `<table class="tb"><thead><tr><th>Prime implicant</th><th>樣式</th><th>涵蓋</th><th></th></tr></thead><tbody>`;
+  for (const p of res.pis) {
+    const tags = (essSet.has(p) ? '<span class="tag">essential</span>' : '') + (used.has(p) ? '<span class="tag use">本解使用</span>' : '');
+    h += `<tr${essSet.has(p) ? ' class="ess"' : ''}><td class="e">${termHTML(p, n, form)}</td><td>${pattern(p, n)}</td><td>${covHTML(p.cov, dcSet)}</td><td>${tags}</td></tr>`;
+  }
+  return h + '</tbody></table>';
+}
+function stepsHTML(res) {
+  const { n, form } = res;
+  if (!res.req.length) return `<p>沒有 F = ${form === 'SOP' ? '1' : '0'} 的格子，直接得到 F = ${form === 'SOP' ? '0' : '1'}。</p>`;
+  const dcSet = new Set(res.dc), piSet = new Set(res.pis);
+  let h = form === 'SOP'
+    ? `<p>把 F = 1 的格子連同 X（don't care）一起做 Quine–McCluskey 合併。</p>`
+    : `<p>把 F = 0 的格子連同 X 一起合併，先求出 F' 的最簡 SOP，再取補數得到 POS。</p>`;
+  h += `<h4>1. 逐輪合併</h4><p>同一輪中，只差一個位元的兩項可以合併，該位元改成「-」。打 ✓ 的項已被合併，沒打勾的就是 prime implicant（PI）。</p><div class="scroll"><div class="rounds">`;
+  res.rounds.forEach((round, r) => {
+    h += `<table class="tb"><caption>第 ${r + 1} 輪</caption><thead><tr><th>1 的個數</th><th>涵蓋</th><th>樣式</th><th></th></tr></thead><tbody>`;
+    let last = -1;
+    for (const t of round) {
+      const g = pop(t.v);
+      const mark = t.used ? '✓' : (piSet.has(t) ? 'PI' : '—');
+      h += `<tr${g !== last && last !== -1 ? ' class="gs"' : ''}><td>${g}</td><td>${covHTML(t.cov, dcSet)}</td><td>${pattern(t, n)}</td><td>${mark}</td></tr>`;
+      last = g;
+    }
+    h += '</tbody></table>';
+  });
+  h += `</div></div>`;
+  const reqs = res.req, essSet = new Set(res.ess);
+  h += `<h4>2. Prime implicant chart</h4><p>只需要涵蓋 ${form === 'SOP' ? 'F = 1' : 'F = 0'} 的格子（X 不用）。某一欄只有一個 ×，那個 PI 就是 essential。</p><div class="scroll"><table class="tb"><thead><tr><th>PI</th>`;
+  for (const m of reqs) { const cnt = res.pis.filter(p => p.cov.includes(m)).length; h += `<th${cnt === 1 ? ' class="only"' : ''}>${m}</th>`; }
+  h += '</tr></thead><tbody>';
+  for (const p of res.pis) {
+    h += `<tr${essSet.has(p) ? ' class="ess"' : ''}><td class="e">${termHTML(p, n, form)}${essSet.has(p) ? '<span class="tag">essential</span>' : ''}</td>`;
+    for (const m of reqs) h += `<td>${p.cov.includes(m) ? '×' : ''}</td>`;
+    h += '</tr>';
+  }
+  h += '</tbody></table></div>';
+  h += `<h4>3. 選出最簡覆蓋</h4><ul>`;
+  h += `<li>Essential PI：${res.ess.length ? res.ess.map(p => termHTML(p, n, form)).join('、') : '無'}</li>`;
+  if (!res.remaining.length) h += `<li>essential PI 已涵蓋全部格子，這就是唯一的最簡解。</li>`;
+  else {
+    h += `<li>扣掉 essential 後還沒涵蓋：${res.remaining.map(m => 'm' + m).join('、')}</li>`;
+    h += `<li>從其餘 ${res.cand.length} 個 PI 中最少要再選 ${res.kMin} 個，符合的組合有 ${res.covers.length} 組`;
+    h += res.solutions.length < res.covers.length ? `，比較 literal 數後保留 ${res.solutions.length} 組。` : '。';
+    h += '</li>';
+  }
+  h += `</ul><p>最簡解：</p><ul>${res.solutions.map(s => `<li style="font-family:var(--serif);font-size:1.1rem">${exprHTML(s, n, form, false)}</li>`).join('')}</ul>`;
+  return h;
+}
+function setHL(root, j) {
+  root.querySelectorAll('.km-groups, .circuit svg, .expr').forEach(c => c.classList.toggle('has-hl', j !== null));
+  root.querySelectorAll('[data-t]').forEach(el => el.classList.toggle('hl', j !== null && el.dataset.t === String(j)));
+}
+function bindHL(root) {
+  const on = e => { const el = e.target.closest && e.target.closest('.expr [data-t], .circuit [data-t]'); if (el) setHL(root, el.dataset.t); };
+  const off = e => {
+    const el = e.target.closest && e.target.closest('[data-t]'); if (!el) return;
+    const to = e.relatedTarget && e.relatedTarget.closest ? e.relatedTarget.closest('[data-t]') : null;
+    if (!to || to.dataset.t !== el.dataset.t) setHL(root, null);
+  };
+  root.addEventListener('mouseover', on); root.addEventListener('focusin', on);
+  root.addEventListener('mouseout', off); root.addEventListener('focusout', off);
+}
+function setPressed(seg, attr, val) { seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset[attr] === String(val)))); }
+
+/* ---------- 化簡模式 ---------- */
+const S = { n: 4, form: 'SOP', vals: null, sel: 0 };
+function renderSimplify(focusM) {
+  const res = solve(S.n, S.vals, S.form);
+  if (S.sel >= res.solutions.length) S.sel = 0;
+  const sol = res.solutions[S.sel];
+  renderKmap($('#kmapS'), { n: S.n, vals: S.vals, readonly: false, sol, form: S.form, id: 's' });
+  $('#solTabsS').innerHTML = solTabsHTML(res.solutions.length, S.sel);
+  $('#exprS').innerHTML = exprHTML(sol, S.n, S.form, true);
+  $('#metaS').textContent = metaText(sol, S.n, S.form);
+  $('#piS').innerHTML = piTableHTML(res, sol);
+  $('#stepsBodyS').innerHTML = stepsHTML(res);
+  $('#circS').innerHTML = circuitSVG(S.n, sol, S.form);
+  setPressed($('#nSegS'), 'n', S.n);
+  setPressed($('#formSegS'), 'form', S.form);
+  setHL($('#simplify'), null);
+  if (focusM !== undefined) { const el = $(`#kmapS [data-m="${focusM}"]`); if (el) el.focus(); }
+}
+function setMDMsg(text) { $('#mdMsg').textContent = text; $('#mdMsg').className = 'msg' + (text ? ' err' : ''); $('#mdInput').classList.toggle('bad', !!text); }
+
+/* ---------- 練習模式 ---------- */
+const P = { n: 4, form: 'SOP', dc: false, vals: null, sel: 0, revealed: false, attempted: false, solved: false, bad: new Set(), correct: 0, total: 0 };
+function newProblem() {
+  P.vals = randomProblem(P.n, P.dc);
+  Object.assign(P, { sel: 0, revealed: false, attempted: false, solved: false, bad: new Set() });
+  $('#ansInput').value = '';
+  $('#fbP').innerHTML = '';
+  renderPractice();
+}
+function renderPractice() {
+  const res = P.revealed ? solve(P.n, P.vals, P.form) : null;
+  if (res && P.sel >= res.solutions.length) P.sel = 0;
+  const sol = res ? res.solutions[P.sel] : null;
+  renderKmap($('#kmapP'), { n: P.n, vals: P.vals, readonly: true, sol, form: P.form, id: 'p', bad: P.bad });
+  const ones = [], dcs = [];
+  P.vals.forEach((v, m) => { if (v === 1) ones.push(m); else if (v === 2) dcs.push(m); });
+  $('#probP').innerHTML = `F(${VARS.slice(0, P.n).join(',')}) = Σm(${ones.join(',')})${dcs.length ? ` + Σd(${dcs.join(',')})` : ''}`;
+  $('#ansLabel').textContent = P.form === 'SOP' ? '你的答案（SOP，積之和）' : '你的答案（POS，和之積）';
+  $('#ansInput').placeholder = P.form === 'SOP' ? "例如 AB' + C'D" : "例如 (A+B')(C+D)";
+  $('#scoreP').innerHTML = `答對 <b>${P.correct}</b> 題／作答 ${P.total} 題`;
+  $('#solP').hidden = !P.revealed;
+  if (res) {
+    $('#solTabsP').innerHTML = solTabsHTML(res.solutions.length, P.sel);
+    $('#exprP').innerHTML = exprHTML(sol, P.n, P.form, true);
+    $('#metaP').textContent = metaText(sol, P.n, P.form);
+    $('#circP').innerHTML = circuitSVG(P.n, sol, P.form);
+  }
+  $('#showBtn').disabled = P.revealed;
+  setPressed($('#nSegP'), 'n', P.n);
+  setPressed($('#formSegP'), 'form', P.form);
+  setHL($('#practice'), null);
+}
+function feedbackHTML(r) {
+  const ms = a => a.map(m => 'm' + m).join('、');
+  switch (r.kind) {
+    case 'syntax': return `<div class="fb warn"><p><b>語法錯誤</b>：${esc(r.msg)}（第 ${r.pos + 1} 個字元附近）。</p></div>`;
+    case 'wrong': {
+      let h = `<div class="fb bad"><p><b>不等價</b>，K-map 上紅框的格子算錯了。</p>`;
+      if (r.extra.length) h += `<p>F 應為 0，你的式子卻是 1：${ms(r.extra)}</p>`;
+      if (r.miss.length) h += `<p>F 應為 1，你的式子卻是 0：${ms(r.miss)}</p>`;
+      return h + '</div>';
+    }
+    case 'form': return `<div class="fb warn"><p><b>等價，但不是 ${P.form} 形式</b>。請寫成${P.form === 'SOP' ? "像 AB' + C'D 這樣的積之和" : "像 (A+B')(C+D) 這樣的和之積"}。</p></div>`;
+    case 'notmin': {
+      const parts = [];
+      if (r.dt > 0) parts.push(`多 ${r.dt} 項`);
+      if (r.dl > 0) parts.push(`多 ${r.dl} 個 literal`);
+      return `<div class="fb warn"><p><b>等價但非最簡</b>：比最簡解${parts.join('、')}。</p></div>`;
+    }
+    case 'correct': return `<div class="fb ok"><p><b>正確</b>，而且已經是最簡式。</p></div>`;
+  }
+}
+function submitAnswer() {
+  const r = judge(P.n, P.vals, P.form, $('#ansInput').value);
+  if (r.kind !== 'syntax') {
+    if (!P.attempted) { P.attempted = true; P.total++; }
+    if (r.kind === 'correct' && !P.revealed && !P.solved) { P.solved = true; P.correct++; }
+    P.bad = new Set(r.kind === 'wrong' ? [...r.extra, ...r.miss] : []);
+  }
+  $('#fbP').innerHTML = feedbackHTML(r);
+  renderPractice();
+}
+
+/* ---------- 初始化 ---------- */
+function init() {
+  const ex = parseMD('m(1,3,7,11,15)+d(0,2,5)', 4);
+  S.vals = valsFromMD(ex, 4);
+  $('#mdInput').value = canonicalMD(S.vals);
+  renderSimplify();
+  bindHL($('#resS').parentElement);
+  bindHL($('#resP').parentElement);
+
+  $('#kmapS').addEventListener('click', e => {
+    const c = e.target.closest('[data-m]'); if (!c) return;
+    const m = +c.dataset.m;
+    S.vals[m] = (S.vals[m] + 1) % 3; S.sel = 0;
+    $('#mdInput').value = canonicalMD(S.vals); setMDMsg('');
+    renderSimplify(m);
+  });
+  $('#mdInput').addEventListener('input', e => {
+    const r = parseMD(e.target.value, S.n);
+    if (!r.ok) { setMDMsg(r.msg); return; }
+    setMDMsg(''); S.vals = valsFromMD(r, S.n); S.sel = 0; renderSimplify();
+  });
+  $('#mdInput').addEventListener('blur', e => { if (parseMD(e.target.value, S.n).ok) e.target.value = canonicalMD(S.vals); });
+  $('#clearBtn').addEventListener('click', () => { S.vals = Array(1 << S.n).fill(0); S.sel = 0; $('#mdInput').value = ''; setMDMsg(''); renderSimplify(); });
+  $('#nSegS').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    S.n = +b.dataset.n; S.vals = Array(1 << S.n).fill(0); S.sel = 0; $('#mdInput').value = ''; setMDMsg(''); renderSimplify();
+  });
+  $('#formSegS').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.form = b.dataset.form; S.sel = 0; renderSimplify(); });
+  $('#solTabsS').addEventListener('click', e => { const b = e.target.closest('[data-sol]'); if (!b) return; S.sel = +b.dataset.sol; renderSimplify(); });
+
+  document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+    const mode = b.dataset.mode;
+    document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+    $('#simplify').hidden = mode !== 'simplify';
+    $('#practice').hidden = mode !== 'practice';
+    if (mode === 'practice' && !P.vals) newProblem();
+  }));
+
+  $('#nSegP').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; P.n = +b.dataset.n; newProblem(); });
+  $('#formSegP').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; P.form = b.dataset.form; newProblem(); });
+  $('#dcP').addEventListener('change', e => { P.dc = e.target.checked; newProblem(); });
+  $('#newBtn').addEventListener('click', newProblem);
+  $('#nextBtn').addEventListener('click', newProblem);
+  $('#submitBtn').addEventListener('click', submitAnswer);
+  $('#ansInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitAnswer(); });
+  $('#showBtn').addEventListener('click', () => { P.revealed = true; P.sel = 0; renderPractice(); });
+  $('#solTabsP').addEventListener('click', e => { const b = e.target.closest('[data-sol]'); if (!b) return; P.sel = +b.dataset.sol; renderPractice(); });
+}
+if (typeof document !== 'undefined') init();
+if (typeof module !== 'undefined') module.exports = { solve, exprStr, termStr, parseMD, canonicalMD, parseExpr, judge, circuitSVG, randomProblem, kLayout, cellMinterm, solCost, groupSegs };
+</script>
+</body>
+</html>
