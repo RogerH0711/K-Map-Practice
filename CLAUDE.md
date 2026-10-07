@@ -28,20 +28,20 @@ TAICA「生成式AI：文字與圖像生成的原理與實務」第五週作業�
 
 ---
 
-## 2. 目前進度（2026-10-07）
+## 2. 目前進度（2026-10-07，v0.2）
 
 | 項目 | 狀態 |
 | --- | --- |
-| 規格書 v1.1 | 完成（完整內容見第 3 節；原始文件在 claude.ai Docs「K-Map Practice 規格書」） |
-| `index.html` v0.1 | 完成；AC1–AC18 全數通過，桌機 1280 px 與手機 375 px 截圖檢查無誤、無 console error |
+| 規格書 v1.2 | 完成（完整內容見第 3 節；v1.1 原始文件在 claude.ai Docs「K-Map Practice 規格書」，v1.2 只改判分規則 2 並新增 AC19） |
+| `index.html` v0.2 | 完成；不等價時的說明改為指出是哪一項圈錯、哪些格子漏圈（朋友回饋）。AC1–AC19 全數通過 |
 | GitHub repo | 已建立 `RogerH0711/K-Map-Practice`，`index.html` v0.1 已在 main；2026-10-07 在 Claude Code 重跑第 5 節全部測試通過 |
 | GitHub Pages | 已上線：https://rogerh0711.github.io/K-Map-Practice/ （repo 改為 public 後啟用，從 main / root 發布）。2026-10-07 確認：線上檔案與 main 的 `index.html` 完全相同；用 Chromium 開線上網址，1280 px 與 375 px 都能正常化簡、無水平捲動、無 console error；使用者本人也已用瀏覽器開啟確認 |
-| 手機實測、使用者回饋 | 尚未 |
+| 手機實測、使用者回饋 | 本人實測無問題；朋友回饋「不等價的解釋很奇怪」→ v0.2 |
 | 截圖、繳交文字 | 尚未 |
 
 ---
 
-## 3. 規格書 v1.1
+## 3. 規格書 v1.2
 
 ### 3.1 專案概述
 
@@ -79,7 +79,7 @@ F1–F8 屬於「化簡模式」，F9 為「練習模式」，F10 為整體介�
 **練習模式判分規則**
 
 1. 語法錯誤：指出錯誤位置，不計入作答次數。
-2. 不等價（忽略 X 格）：列出答案在哪些 minterm 上與題目不同。
+2. 不等價（忽略 X 格）：列出答案在哪些 minterm 上與題目不同，並說明原因：SOP 指出是哪一項包含了 0 的格子（圈到 0），或哪些 1 沒有任何一項包含（漏圈）；POS 則指出哪個和項在 1 的格子為 0，或哪些 0 沒被圈到。式子不是 SOP／POS 形式時只列出格子。
 3. 等價但非最簡：顯示比最簡解多幾項、多幾個 literal。
 4. 等價且最簡：判定正確。
 
@@ -106,6 +106,7 @@ F1–F8 屬於「化簡模式」，F9 為「練習模式」，F10 為整體介�
 | AC15 | F9 | 題目 `m(0,2,8,10)`，作答 SOP | `B'D'` → 正確；`A'B'D' + AB'D'` → 等價但非最簡（多 1 項、多 4 個 literal）；`B'` → 不等價，列出 1、3、9、11；`B'D'+` → 語法錯誤 |
 | AC16 | F9 | 題目 `m(1,3,7,11,15)+d(0,2,5)` | `CD + A'B'` 與 `CD + A'D` 都判為正確 |
 | AC17 | F9 | 連續出 10 題 | 不會出現全 0 或全 1 的題目；答對計數正確累加 |
+| AC19 | F9 | 題目 `m(5,7,14,15)`，作答 SOP `BD + ABC` | 不等價；說明 BD 這一項包含 m13，但題目在這格是 0（圈到了 0）；K-map 上 m13 加紅框 |
 | AC18 | F10 | 手機寬度 375 px 開啟；在 Chrome、Safari（含 iOS）操作 | 無水平捲動，所有功能可用；輸入後結果無明顯延遲 |
 
 ### 3.5 畫面配置與操作流程
@@ -143,7 +144,7 @@ F1–F8 屬於「化簡模式」，F9 為「練習模式」，F10 為整體介�
 
 ---
 
-## 4. `index.html` 程式結構（v0.1）
+## 4. `index.html` 程式結構（v0.2）
 
 全部在一個 `<script>` 裡，前半是純邏輯、後半是畫面：
 
@@ -152,7 +153,7 @@ F1–F8 屬於「化簡模式」，F9 為「練習模式」，F10 為整體介�
 | 基本定義 | `kLayout`、`cellMinterm`、`literals`、`termStr`、`exprStr`、`solCost` | 版面（Gray code）、項的表示法 `{v, mask, cov}`（mask 的 bit = 1 代表 `-`） |
 | 化簡 | `solve(n, vals, form)` | vals 每格 0／1／2（2 = X）；回傳 rounds、pis、ess、remaining、cand、kMin、covers、solutions。POS 的解依變數順序排序 |
 | 輸入解析 | `parseMD`、`valsFromMD`、`canonicalMD` | m()/d() 的解析與正規化 |
-| 練習判分 | `parseExpr`、`evalNode`、`sopCost`、`posCost`、`judge`、`randomProblem` | `judge` 回傳 kind：syntax／wrong／form／notmin／correct |
+| 練習判分 | `parseExpr`、`evalNode`、`sopCost`、`posCost`、`nodeStr`、`diffGroups`、`judge`、`randomProblem` | `judge` 回傳 kind：syntax／wrong／form／notmin／correct；wrong 另含 `groups`（type：over 圈到不該圈的格子／under 漏圈／diff 非 SOP、POS 形式），畫面由 `groupHTML` 轉成文字 |
 | 電路 | `circuitSVG`、`gatePath`、`orBack` | 變數匯流排 + NOT + 兩層閘；第一層閘填入與 K-map 圈相同的顏色 |
 | K-map 圈 | `segments`、`groupSegs`、`renderKmap` | 環繞的圈拆成多段，用 clipPath 裁切成「開口」造型 |
 | 畫面 | `renderSimplify`、`renderPractice`、`stepsHTML`、`piTableHTML`、`setHL`、`bindHL` | 狀態物件 `S`（化簡）、`P`（練習）；每次狀態變動整塊重繪 |
@@ -168,12 +169,13 @@ F1–F8 屬於「化簡模式」，F9 為「練習模式」，F10 為整體介�
 每輪修改後都要跑，結果寫進迭代紀錄。測試腳本與執行指令在 `tests/`（見 `tests/README.md`）。
 
 1. **邏輯測試（Node）**：用 Python 把 `index.html` 的 `<script>` 內容抽出成 `km.js`，`require` 後跑：
-   - AC1、AC3–AC17 的測資逐條比對（POS 比對前先去掉空白）
+   - AC1、AC3–AC17、AC19 的測資逐條比對（POS 比對前先去掉空白）
+   - 2000 組隨機錯誤答案：`groups` 必須剛好涵蓋每個不同的格子一次，且 over 類一定有指出是哪一項
    - 3000 組隨機函數（2–4 變數、含／不含 X）：每組最簡解都要與原函數等價，且把解答丟回 `judge` 必須判為 correct
    - 3 變數 300 組：以暴力窮舉所有 implicant 組合，確認 `solve` 的（項數, literal 數）就是最小值
 2. **畫面測試（Playwright + Chromium）**：開 `file://.../index.html`，截圖 1280×900 桌機與 375×812 手機；檢查 `document.documentElement.scrollWidth === 375`、沒有 `pageerror` 與 console error；操作切換解、切 POS、展開化簡過程、練習模式送出錯誤答案與看解答，各截一張圖目視檢查。
 
-v0.1 的測試結果：上述全部通過。
+v0.1、v0.2 的測試結果：上述全部通過。
 
 已知、尚未處理的小問題（2026-10-07 重測時發現，不影響 AC）：
 - 函數本身是常數（例如全 1 加 X）時，`judge` 對答案 `1`／`0` 回傳 `form` 而非 `correct`。練習模式的 `randomProblem` 不會出常數題，所以使用者碰不到。
@@ -187,6 +189,7 @@ v0.1 的測試結果：上述全部通過。
 
 | 版本 | 日期 | 發現的問題／需求 | 給 AI 的指示 | 結果 |
 | --- | --- | --- | --- | --- |
+| 程式 v0.2／規格 v1.2 | 2026-10-07 | 朋友練習 `m(5,7,14,15)` 答 `BD + ABC`，回饋只寫「K-map 上紅框的格子算錯了；F 應為 0，你的式子卻是 1：m13」，覺得解釋很奇怪：看不出是哪一項錯、錯在哪 | 不等價時改成指出原因：哪一項包含了不該圈的格子（例如「BD 這一項包含 m13，但題目在這格是 0…這個圈圈到了 0」），哪些格子漏圈；POS 用和項說明；同原因的格子合併成一句；頁尾改 v0.2 | 新增 AC19 與 2000 組隨機錯誤答案測試；AC1–AC19、隨機與暴力窮舉測試、桌機／375 px 畫面測試全部通過 |
 | 程式 v0.1 | 2026-10-07 | 依規格 v1.1 產生第一版；用 AC 測資自動測試時發現 POS 項順序是 (D')(B')，與 AC9 預期的 (B')(D') 不同；截圖檢查發現格子編號被圈遮住、切換後算式殘留半透明 | 照規格 F1–F10 實作單一 index.html；POS 和項依變數順序排列；格子編號移到圈的上層；每次重繪時清除反白狀態 | AC1–AC18 全部通過，另加 3000 組隨機函數驗證等價、300 組 3 變數暴力窮舉驗證最簡；桌機與 375 px 手機版面正常 |
 | 規格 v1.1 | 2026-10-07 | 名稱要反映用途：實驗課以插麵包板為主，這個純計算工具比較接近理論課的練習 | 名稱改為 K-Map Practice；確認版面（列 AB、欄 CD）、最簡定義、補數符號 `'` | 規格書改名，其餘內容不變 |
 | 規格 v1 | 2026-10-07 | 選定 K-map 化簡器為題目，需要定出範圍 | 決定：變數 2–4、練習模式用輸入式子判分、加入 m()/d() 輸入、列出所有最簡解、顯示化簡過程、畫邏輯閘電路 | 完成規格書 v1（F1–F10、AC1–AC18） |
@@ -197,7 +200,8 @@ v0.1 的測試結果：上述全部通過。
 
 - [x] 建 GitHub public repo `RogerH0711/K-Map-Practice`，`index.html` 已在 main
 - [x] repo 改為 public → Settings → Pages → Deploy from a branch → main / (root)；網址 `https://rogerh0711.github.io/K-Map-Practice/` 已上線
-- [ ] 用手機與電腦實際操作，收集想改的地方 → 第二輪修改（v0.2），每輪一個 commit
+- [x] 用手機與電腦實際操作，收集想改的地方 → 第二輪修改（v0.2：不等價說明）
+- [ ] 繼續收集回饋 → v0.3（若有），每輪一個 commit
 - [ ] 規格書同步更新到與成品一致，可放一份到 repo 的 `README.md`
 - [ ] 向成大助教確認本週 `.ipynb` 規定要改交什麼
 - [ ] 截圖 2–4 張：化簡模式主畫面、多解切換／hover 標示、練習模式回饋、手機版
