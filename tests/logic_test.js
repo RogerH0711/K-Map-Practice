@@ -29,8 +29,7 @@ ok('AC5', JSON.stringify(sols(4, 'm(0,2,8,10)', 'SOP')) === JSON.stringify(["B'D
 // AC6
 { const s = sols(3, 'm(0,1,2,5,6,7)', 'SOP'); const e = nows(["A'B' + BC' + AC", "A'C' + B'C + AB"]); ok('AC6', s.length === 2 && e.every(x => s.includes(x)), s); }
 // AC7
-{ const norm = x => x.split('+').sort().join('+'); const s = sols(4, 'm(1,3,7,11,15)+d(0,2,5)', 'SOP').map(norm); const e = ["CD+A'B'", "CD+A'D"].map(norm); ok('AC7 (term order ignored)', s.length === 2 && e.every(x => s.includes(x)), s);
-  console.log('  AC7 display order:', sols(4, 'm(1,3,7,11,15)+d(0,2,5)', 'SOP')); }
+{ const s = sols(4, 'm(1,3,7,11,15)+d(0,2,5)', 'SOP'); ok('AC7', JSON.stringify(s) === JSON.stringify(["A'B'+CD", "A'D+CD"]), s); }
 // AC8
 ok('AC8a', sols(4, '', 'SOP')[0] === '0'); ok('AC8b', sols(4, 'm(' + [...Array(16).keys()] + ')', 'SOP')[0] === '1');
 ok('AC8c', sols(3, 'm(0,1,2,3)+d(4,5,6,7)', 'SOP')[0] === '1');
