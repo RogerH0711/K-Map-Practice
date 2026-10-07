@@ -1,7 +1,16 @@
 const K = require(process.argv[2]);
 const { solve, exprStr, parseMD, canonicalMD, judge, circuitSVG, randomProblem, kLayout, cellMinterm, solCost } = K;
-// 固定種子的亂數（mulberry32），讓每次測資相同、失敗時可以重現
-const rand = (seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; })(20261007);
+// 固定種子的亂數（Park–Miller），讓每次測資相同、失敗時可以重現
+let seed = 20_261_007;
+function rand() {
+  seed = (seed * 16_807) % 2_147_483_647;
+  return (seed - 1) / 2_147_483_646;
+}
+// 隨機格子值：含 X 時約 20% 為 X，其餘一半 1、一半 0
+function randCell(withDc) {
+  if (withDc && rand() < 0.2) return 2;
+  return rand() < 0.5 ? 1 : 0;
+}
 let pass = 0, fail = 0;
 const ok = (name, cond, info = '') => { if (cond) pass++; else { fail++; console.log('FAIL', name, info); } };
 const V = (n, s) => { const r = parseMD(s, n); const v = Array(1 << n).fill(0); r.ones.forEach(k => v[k] = 1); r.dcs.forEach(k => v[k] = 2); return v; };
@@ -70,7 +79,7 @@ const evalSol = (sol, n, form, m) => {
 let rnd = 0, rndConst = 0;
 for (let it = 0; it < 3000; it++) {
   const n = 2 + it % 3, dc = it % 2 === 0, N = 1 << n;
-  const v = []; for (let m = 0; m < N; m++) v.push(dc && rand() < 0.2 ? 2 : (rand() < 0.5 ? 1 : 0));
+  const v = []; for (let m = 0; m < N; m++) v.push(randCell(dc));
   for (const form of ['SOP', 'POS']) {
     const r = solve(n, v, form);
     for (const s of r.solutions) {
@@ -93,7 +102,7 @@ console.log('  constant-function judge cases not judged correct:', rndConst);
 // Brute force 3-var 300
 let bf = 0;
 for (let it = 0; it < 300; it++) {
-  const n = 3, N = 8, v = []; for (let m = 0; m < N; m++) v.push(rand() < 0.2 ? 2 : (rand() < 0.5 ? 1 : 0));
+  const n = 3, N = 8, v = []; for (let m = 0; m < N; m++) v.push(randCell(true));
   for (const form of ['SOP', 'POS']) {
     const want = form === 'SOP' ? 1 : 0, req = [...Array(N).keys()].filter(m => v[m] === want);
     const cubes = [];
