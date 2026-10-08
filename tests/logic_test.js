@@ -176,6 +176,88 @@ function simulate(p, n, m) {
     }
   }
   ok(`AC29 circuits simulate to F, XOR forms equivalent (${forms} forms)`, bad === 0, bad); }
+// ===== v0.4：5 變數 =====
+// AC30：版面與編號範圍
+{ const L5 = kLayout(5);
+  ok('AC30 layout', L5.maps === 2 && L5.mapVar === 'A' && L5.rowVars === 'BC' && L5.colVars === 'DE' && cellMinterm(L5, 2, 3, 1) === 30 && cellMinterm(L5, 0, 0, 0) === 0, JSON.stringify(L5));
+  ok('AC30 range', !parseMD('m(32)', 5).ok && /0–31/.test(parseMD('m(32)', 5).msg) && parseMD('m(31)', 5).ok); }
+// AC31：C'E'，兩張圖都畫四個角落
+{ const L5 = kLayout(5), s = sols(5, 'm(0,2,8,10,16,18,24,26)', 'SOP');
+  const t = solve(5, V(5, 'm(0,2,8,10,16,18,24,26)'), 'SOP').solutions[0][0], g = K.groupSegs(t, L5);
+  ok('AC31', s.join() === "C'E'" && K.mapHas(t, L5, 0) && K.mapHas(t, L5, 1) && g.rs.length === 2 && g.cs.length === 2, s); }
+// AC32：課本 5 變數範例，三項分別畫在哪張圖
+{ const L5 = kLayout(5), v = V(5, 'm(0,2,4,6,9,13,21,23,25,29,31)'), r = solve(5, v, 'SOP');
+  const where = r.solutions[0].map(t => exprStr([t], 5, 'SOP') + ':' + [0, 1].filter(k => K.mapHas(t, L5, k)).join(''));
+  ok('AC32', r.solutions.length === 1 && where.slice().sort().join() === ["A'B'E':0", "ACE:1", "BD'E:01"].join(), where); }
+// AC33：5 變數隨機 1000 組（SOP、POS），等價、自我判分、三種電路模擬、效能
+{ let bad = 0, maxMs = 0;
+  for (let it = 0; it < 1000; it++) {
+    const v = [];
+    for (let m = 0; m < 32; m++) v.push(randCell(it % 2 === 0));
+    for (const form of ['SOP', 'POS']) {
+      const t0 = process.hrtime.bigint(), r = solve(5, v, form);
+      maxMs = Math.max(maxMs, Number(process.hrtime.bigint() - t0) / 1e6);
+      if (r.truncated) bad++;
+      for (const s of r.solutions) {
+        for (let m = 0; m < 32; m++) if (v[m] !== 2 && evalSol(s, 5, form, m) !== v[m]) bad++;
+        if (judge(5, v, form, exprStr(s, 5, form)).kind !== 'correct') bad++;
+        for (const variant of ['std', 'nn', 'pure']) {
+          const p = K.circuitPlan(5, s, form, variant);
+          if (p.constant) continue;
+          for (let m = 0; m < 32; m++) if (v[m] !== 2 && simulate(p, 5, m) !== v[m]) bad++;
+        }
+      }
+    }
+  }
+  ok(`AC33 5-var random 1000 (max ${maxMs.toFixed(1)} ms)`, bad === 0 && maxMs < 100, bad); }
+// AC34：新的最小覆蓋搜尋與窮舉組合比對（候選 PI ≤ 18）
+function refCovers(rem, cand) {
+  for (let k = 1; k <= cand.length; k++) {
+    let count = 0;
+    const rec = (start, acc) => {
+      if (acc.length === k) {
+        if (rem.every(m => acc.some(p => p.cov.includes(m)))) count++;
+        return;
+      }
+      for (let i = start; i < cand.length; i++) { acc.push(cand[i]); rec(i + 1, acc); acc.pop(); }
+    };
+    rec(0, []);
+    if (count) return { kMin: k, count };
+  }
+  return { kMin: 0, count: 0 };
+}
+{ let mism = 0, cases = 0;
+  for (let it = 0; it < 3000; it++) {
+    const n = 2 + it % 4, v = [];
+    for (let m = 0; m < (1 << n); m++) v.push(randCell(it % 2 === 0));
+    for (const form of ['SOP', 'POS']) {
+      const r = solve(n, v, form);
+      if (!r.remaining.length || r.cand.length > 18) continue;
+      cases++;
+      const ref = refCovers(r.remaining, r.cand);
+      if (ref.kMin !== r.kMin || ref.count !== r.covers.length) mism++;
+    }
+  }
+  ok(`AC34 branch-and-bound == exhaustive (${cases} cases)`, mism === 0, mism); }
+// 壓力測試：5 變數、約 40% 為 X，不應觸發搜尋上限
+{ let trunc = 0;
+  for (let it = 0; it < 300; it++) {
+    const v = [];
+    for (let m = 0; m < 32; m++) v.push(rand() < 0.4 ? 2 : randCell(false));
+    for (const form of ['SOP', 'POS']) if (solve(5, v, form).truncated) trunc++;
+  }
+  ok('stress 5-var 40% X', trunc === 0, trunc); }
+// AC35、AC36：5 變數 parity 的 XOR 形式，以及 16 輸入 OR 沒有現成晶片
+{ const par = [];
+  const ones = m => { let c = 0; for (let b = 0; b < 5; b++) { c += (m >> b) & 1; } return c; };
+  for (let m = 0; m < 32; m++) {
+    if (ones(m) % 2) par.push(m);
+  }
+  const v = V(5, 'm(' + par.join(',') + ')'), sol = solve(5, v, 'SOP').solutions[0], cost = solCost(sol, 5);
+  const xf = K.xorFormsFor(5, v, cost.lits);
+  ok('AC35 parity XOR', cost.terms === 16 && xf.length > 0 && K.xorExprStr(5, xf[0], false) === 'A⊕B⊕C⊕D⊕E', JSON.stringify(cost));
+  const parts = K.partsList(K.planGates(K.circuitPlan(5, sol, 'SOP', 'std'))).list;
+  ok('AC36 16-input OR has no chip', parts.some(x => x.over && x.desc === '16 輸入 OR' && x.chips === 0), JSON.stringify(parts)); }
 // Brute force 3-var 300
 let bf = 0;
 for (let it = 0; it < 300; it++) {

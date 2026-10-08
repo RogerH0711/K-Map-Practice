@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>K-Map Practice</title>
-<meta name="description" content="卡諾圖化簡與練習：2–4 變數，即時列出所有最簡 SOP／POS、Quine–McCluskey 化簡過程與邏輯閘電路。">
+<meta name="description" content="卡諾圖化簡與練習：2–5 變數，即時列出所有最簡 SOP／POS、Quine–McCluskey 化簡過程與邏輯閘電路。">
 <style>
 :root{
   --paper:#f3f5ee;
@@ -143,6 +143,19 @@ details.steps summary{cursor:pointer;font-weight:700;min-height:36px;display:fle
 .circtabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
 .circtabs button{border:1.5px solid var(--ink);background:var(--sheet);border-radius:999px;padding:2px 14px;min-height:38px;cursor:pointer;font-size:.92rem}
 .circtabs button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.kmaps.two{display:flex;flex-wrap:wrap;gap:4px 32px}
+figure.kmwrap{margin:0}
+.kmcap{font-family:var(--serif);font-size:1.1rem;margin:0 0 0 58px}
+.layout.wide{grid-template-columns:minmax(0,1fr);gap:28px}
+.layout.wide .left .row,.layout.wide .left .msg,.layout.wide .left .hint{max-width:640px}
+.keypad{display:grid;grid-template-columns:repeat(auto-fill,minmax(48px,1fr));gap:6px;max-width:560px;margin:10px 0 4px}
+.key{display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 6px;border:1.5px solid var(--line);border-radius:8px;background:var(--sheet);cursor:pointer;font-family:var(--serif);font-size:1.2rem;touch-action:manipulation}
+.key.var{font-style:italic;border-color:var(--ink)}
+.key.op{font-family:"Cambria Math","STIX Two Math","Segoe UI Symbol","Apple Symbols",var(--serif)}
+.key .prime{font-size:1.6rem;line-height:1}
+.key.fn{font-family:var(--sans);font-size:.95rem;color:var(--ink2)}
+.key:active{background:rgba(31,43,77,.12)}
+.kbdopt{font-size:.9rem;color:var(--ink2)}
 .xop{font-family:"Cambria Math","STIX Two Math","Segoe UI Symbol","Apple Symbols",sans-serif;font-style:normal;font-size:.72em;margin:0 .12em;vertical-align:.08em}
 .circnote .xe{font-family:var(--serif);font-size:1.05rem}
 .circnote{margin:0 0 8px}
@@ -152,7 +165,7 @@ h4.partsh{margin:14px 0 6px;font-size:.92rem;color:var(--ink2)}
 .xorline .xe{font-family:var(--serif);font-size:1.25rem;white-space:nowrap;margin:0 2px}
 
 /* practice */
-.prob{font-family:var(--serif);font-size:1.25rem;margin:4px 0 0}
+.prob{font-family:var(--serif);font-size:1.25rem;margin:4px 0 0;overflow-wrap:anywhere}
 .fb{margin:12px 0;padding:10px 14px;border-left:4px solid var(--ink2);background:var(--sheet);font-size:.98rem}
 .fb.ok{border-color:var(--ok)}.fb.ok b{color:var(--ok)}
 .fb.bad{border-color:var(--err)}.fb.bad b{color:var(--err)}
@@ -181,7 +194,7 @@ footer ul{margin:4px 0 8px;padding-left:20px}
 <header class="top">
   <div class="brand">
     <h1>K-Map Practice</h1>
-    <p>卡諾圖化簡與練習，支援 2–4 變數</p>
+    <p>卡諾圖化簡與練習，支援 2–5 變數</p>
   </div>
   <nav class="tabs" role="tablist" aria-label="模式">
     <button role="tab" id="tabS" aria-selected="true" aria-controls="simplify" data-mode="simplify">化簡</button>
@@ -194,7 +207,7 @@ footer ul{margin:4px 0 8px;padding-left:20px}
   <section id="simplify" role="tabpanel" aria-labelledby="tabS">
     <div class="controls">
       <div class="seg" id="nSegS" role="group" aria-label="變數數量">
-        <button data-n="2">2 變數</button><button data-n="3">3 變數</button><button data-n="4">4 變數</button>
+        <button data-n="2">2 變數</button><button data-n="3">3 變數</button><button data-n="4">4 變數</button><button data-n="5">5 變數</button>
       </div>
       <div class="seg" id="formSegS" role="group" aria-label="化簡形式">
         <button data-form="SOP">SOP（圈 1）</button><button data-form="POS">POS（圈 0）</button>
@@ -233,7 +246,7 @@ footer ul{margin:4px 0 8px;padding-left:20px}
   <section id="practice" role="tabpanel" aria-labelledby="tabP" hidden>
     <div class="controls">
       <div class="seg" id="nSegP" role="group" aria-label="變數數量">
-        <button data-n="2">2 變數</button><button data-n="3">3 變數</button><button data-n="4">4 變數</button>
+        <button data-n="2">2 變數</button><button data-n="3">3 變數</button><button data-n="4">4 變數</button><button data-n="5">5 變數</button>
       </div>
       <label class="check"><input type="checkbox" id="dcP"> 含 don't care</label>
       <div class="seg" id="formSegP" role="group" aria-label="作答形式">
@@ -253,6 +266,8 @@ footer ul{margin:4px 0 8px;padding-left:20px}
           <input id="ansInput" class="txt" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false">
           <button id="submitBtn" class="btn primary">送出</button>
         </div>
+        <div class="keypad" id="keypad" role="group" aria-label="輸入按鍵"></div>
+        <label class="check kbdopt"><input type="checkbox" id="noKbd"> 不跳出手機鍵盤，只用上面的按鍵</label>
         <div id="fbP" aria-live="polite"></div>
         <div class="actions">
           <button id="showBtn" class="btn">看解答</button>
@@ -278,31 +293,41 @@ footer ul{margin:4px 0 8px;padding-left:20px}
       <summary>使用說明</summary>
       <ul>
         <li>化簡：點格子或輸入 m()/d()，右側會即時列出所有最簡解，K-map 上同步畫出圈法。</li>
+        <li>5 變數畫成兩張 4×4：左邊 A = 0、右邊 A = 1，兩張圖同一個位置的格子互相相鄰，跨兩張圖的圈會在兩邊用同一個顏色畫出。</li>
         <li>把滑鼠移到算式中的某一項（手機上點一下），K-map 上對應的圈與電路中的邏輯閘會一起標示出來。</li>
         <li>最簡的定義：項數最少；項數相同時，literal 總數最少。</li>
         <li>電路可以切換 AND-OR、NAND-NAND、只用 NAND（POS 則是 OR-AND、NOR-NOR、只用 NOR），下方列出閘數與麵包板需要的 74 系列晶片。函數可以寫成更省的 XOR 形式時，會多一個「XOR 形式」分頁。</li>
         <li>練習：選好設定後按「出新題目」，輸入答案後送出。補數寫成 A'（也可以用 ~A、!A），AND 直接相連或用 *，OR 用 +，POS 用括號，例如 (A+B')(C+D)。</li>
         <li>偶爾會出 F = 0 或 F = 1 的常數題，答案直接寫 0 或 1。</li>
+        <li>作答框下方有變數、'、括號、⊕、⊙ 等按鍵；勾選「不跳出手機鍵盤」就可以只用按鍵輸入。</li>
         <li>XOR 寫成 ⊕ 或 ^，XNOR 寫成 ⊙，優先順序是 NOT &gt; AND &gt; XOR &gt; OR，不確定時加括號。用了 XOR 的答案即使等價，也不算 SOP／POS。</li>
       </ul>
     </details>
-    <p>K-Map Practice 版本 v0.3</p>
+    <p>K-Map Practice 版本 v0.4</p>
   </div>
 </footer>
 
 <script>
 'use strict';
 /* ========== 基本定義 ========== */
-const VARS = ['A', 'B', 'C', 'D'];
+const VARS = ['A', 'B', 'C', 'D', 'E'];
 const COLORS = ['#e0a800', '#e5478c', '#1b9fd0', '#34a058', '#ee7426', '#8a5fe6', '#d0423c', '#12998a', '#7d8c17', '#b04cc2'];
 const GRAY = { 1: ['0', '1'], 2: ['00', '01', '11', '10'] };
 
 function pop(x) { let c = 0; while (x) { x &= x - 1; c++; } return c; }
+// 5 變數：兩張 4×4（A = 0、A = 1），每張列 BC、欄 DE；兩張圖同位置的格子互為相鄰
 function kLayout(n) {
-  const rb = n === 4 ? 2 : 1, cb = n - rb;
-  return { n, rb, cb, rowCodes: GRAY[rb], colCodes: GRAY[cb], rowVars: VARS.slice(0, rb).join(''), colVars: VARS.slice(rb, n).join('') };
+  const maps = n === 5 ? 2 : 1, m4 = n === 5 ? 4 : n, off = n - m4;
+  const rb = m4 === 4 ? 2 : 1, cb = m4 - rb;
+  return { n, maps, rb, cb, rowCodes: GRAY[rb], colCodes: GRAY[cb], mapVar: off ? VARS[0] : '', rowVars: VARS.slice(off, off + rb).join(''), colVars: VARS.slice(off + rb, n).join('') };
 }
-function cellMinterm(L, r, c) { return parseInt(L.rowCodes[r] + L.colCodes[c], 2); }
+function cellMinterm(L, r, c, k = 0) { return k * (1 << (L.rb + L.cb)) + parseInt(L.rowCodes[r] + L.colCodes[c], 2); }
+// 項 t 是否出現在第 k 張圖
+function mapHas(t, L, k) {
+  if (L.maps === 1) return true;
+  const b = 1 << (L.rb + L.cb);
+  return !!(t.mask & b) || ((t.v & b) ? 1 : 0) === k;
+}
 function litCount(t, n) { return n - pop(t.mask); }
 function pattern(t, n) {
   let s = '';
@@ -333,9 +358,45 @@ function exprStr(sol, n, form) {
 function solCost(sol, n) { return { terms: sol.length, lits: sol.reduce((s, t) => s + litCount(t, n), 0) }; }
 
 /* ========== Quine–McCluskey + Petrick ========== */
-function combos(arr, k, cb, start = 0, acc = []) {
-  if (acc.length === k) { cb(acc); return; }
-  for (let i = start; i <= arr.length - (k - acc.length); i++) { acc.push(arr[i]); combos(arr, k, cb, i + 1, acc); acc.pop(); }
+// 找出所有「項數最少」的覆蓋：每次挑候選最少的格子分支；分支 i 時禁用前面的候選，每組覆蓋只會被找到一次
+function minCovers(remaining, cand, cap = 2000, budget = 400000) {
+  const covBy = new Map(remaining.map(m => [m, cand.filter(p => p.cov.includes(m))]));
+  const banned = new Set(), chosen = [];
+  let best = Infinity, found = [], nodes = 0, truncated = false;
+  function rec(unc) {
+    if (++nodes > budget) { truncated = true; return; }
+    if (!unc.length) {
+      if (chosen.length < best) { best = chosen.length; found = []; }
+      if (found.length < cap) found.push(chosen.slice()); else truncated = true;
+      return;
+    }
+    if (chosen.length >= best) return;
+    let maxc = 0;
+    for (const p of cand) {
+      if (banned.has(p) || chosen.includes(p)) continue;
+      let c = 0;
+      for (const m of unc) if (p.cov.includes(m)) c++;
+      if (c > maxc) maxc = c;
+    }
+    if (!maxc || chosen.length + Math.ceil(unc.length / maxc) > best) return;
+    let opts = null;
+    for (const m of unc) {
+      const o = covBy.get(m).filter(p => !banned.has(p));
+      if (!o.length) return;
+      if (!opts || o.length < opts.length) opts = o;
+    }
+    const added = [];
+    for (const p of opts) {
+      chosen.push(p);
+      rec(unc.filter(m => !p.cov.includes(m)));
+      chosen.pop();
+      banned.add(p); added.push(p);
+      if (nodes > budget) break;
+    }
+    added.forEach(p => banned.delete(p));
+  }
+  rec(remaining);
+  return { covers: found, kMin: best, truncated };
 }
 function solve(n, vals, form) {
   const N = 1 << n, want = form === 'SOP' ? 1 : 0;
@@ -376,14 +437,8 @@ function solve(n, vals, form) {
   const remaining = req.filter(m => !covered.has(m));
   const remSet = new Set(remaining);
   const cand = pis.filter(p => !essSet.has(p) && p.cov.some(m => remSet.has(m)));
-  let covers = [], kMin = 0;
-  if (!remaining.length) covers = [[]];
-  else {
-    for (let k = 1; k <= cand.length && !covers.length; k++) {
-      combos(cand, k, c => { if (remaining.every(m => c.some(p => p.cov.includes(m)))) covers.push(c.slice()); });
-      kMin = k;
-    }
-  }
+  let covers = [[]], kMin = 0, truncated = false;
+  if (remaining.length) ({ covers, kMin, truncated } = minCovers(remaining, cand));
   const order = t => pis.indexOf(t);
   let sols = covers.map(c => [...ess, ...c].sort((a, b) => order(a) - order(b)));
   const minL = Math.min(...sols.map(s => solCost(s, n).lits));
@@ -394,7 +449,7 @@ function solve(n, vals, form) {
     const cmp = (a, b) => { const x = key(a), y = key(b); for (let q = 0; q < Math.min(x.length, y.length); q++) if (x[q] !== y[q]) return x[q] - y[q]; return x.length - y.length; };
     sols = sols.map(s => s.slice().sort(cmp));
   }
-  return { ...base, rounds, pis, ess, remaining, cand, kMin, covers, solutions: sols, unmerged };
+  return { ...base, rounds, pis, ess, remaining, cand, kMin, covers, truncated, solutions: sols, unmerged };
 }
 
 /* ========== m()/d() 解析 ========== */
@@ -879,20 +934,28 @@ function gateSummary(gs) {
 function partsList(gs) {
   const rows = new Map();
   for (const g of gs) {
-    const opt = CHIPS[g.kind].find(c => c[0] >= g.fanin), key = opt[1] + '|' + g.kind;
+    const opt = CHIPS[g.kind].find(c => c[0] >= g.fanin);
+    if (!opt) {
+      const key = `over|${g.kind}|${g.fanin}`;
+      if (!rows.has(key)) rows.set(key, { part: '—', over: true, desc: `${g.fanin} 輸入 ${GATE_NAME[g.kind]}`, per: 1, used: 0, padded: false });
+      rows.get(key).used++;
+      continue;
+    }
+    const key = opt[1] + '|' + g.kind;
     if (!rows.has(key)) rows.set(key, { part: opt[1], per: opt[2], used: 0, padded: false });
     const r = rows.get(key);
     r.used++;
     if (!g.tied && g.fanin < opt[0]) r.padded = true;
   }
-  const list = [...rows.values()].map(r => ({ ...r, chips: Math.ceil(r.used / r.per) }));
+  const list = [...rows.values()].map(r => ({ ...r, chips: r.over ? 0 : Math.ceil(r.used / r.per) }));
   return { list, total: list.reduce((s, r) => s + r.chips, 0) };
 }
 function partsHTML(gs) {
   const { list, total } = partsList(gs);
   let h = `<table class="tb"><thead><tr><th>晶片</th><th>內容</th><th>用到</th><th>片數</th></tr></thead><tbody>`;
-  for (const r of list) h += `<tr><td>${r.part}${r.padded ? '*' : ''}</td><td>${CHIP_DESC[r.part]}</td><td>${r.used} 個閘</td><td>${r.chips}</td></tr>`;
+  for (const r of list) h += `<tr><td>${r.part}${r.padded ? '*' : ''}</td><td>${r.desc || CHIP_DESC[r.part]}</td><td>${r.used} 個閘</td><td>${r.over ? '—' : r.chips}</td></tr>`;
   h += `</tbody></table><p class="hint">共 ${total} 片。`;
+  if (list.some(r => r.over)) h += '超過 8 輸入的閘沒有現成晶片，要拆成多層（例如兩個 8 輸入閘再合併），沒有算進片數。';
   if (list.some(r => r.padded)) h += '* 閘的輸入比晶片少，多餘輸入 AND／NAND 接 1、OR／NOR 接 0。';
   return h + '以常見型號估算，每種規格分開計算，沒有做跨晶片共用；CD40xx 是 CMOS 4000 系列，和 74LS 混用要注意邏輯準位。實際以實驗室現有的晶片為準。</p>';
 }
@@ -968,10 +1031,16 @@ function exprHTML(sol, n, form, interactive) {
   return 'F = ' + parts.join(form === 'SOP' ? ' + ' : '');
 }
 function renderKmap(host, o) {
-  const L = kLayout(o.n), R = L.rowCodes.length, C = L.colCodes.length;
+  const L = kLayout(o.n);
+  let h = '';
+  for (let k = 0; k < L.maps; k++) h += oneMapHTML(o, L, k);
+  host.innerHTML = `<div class="kmaps${L.maps > 1 ? ' two' : ''}">${h}</div>`;
+}
+function oneMapHTML(o, L, k) {
+  const R = L.rowCodes.length, C = L.colCodes.length;
   let cells = '';
   for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
-    const m = cellMinterm(L, r, c), v = o.vals[m];
+    const m = cellMinterm(L, r, c, k), v = o.vals[m];
     const cls = ['cell', v === 1 ? 'v1' : v === 2 ? 'vx' : 'v0'];
     if (c === C - 1) cls.push('lc');
     if (r === R - 1) cls.push('lr');
@@ -982,9 +1051,10 @@ function renderKmap(host, o) {
   }
   let svg = '';
   if (o.sol && o.sol.length) {
-    const W = C * 100, H = R * 100, cid = 'clip-' + o.id;
+    const W = C * 100, H = R * 100, cid = 'clip-' + o.id + k;
     svg += `<defs><clipPath id="${cid}"><rect x="0" y="0" width="${W}" height="${H}"/></clipPath></defs><g clip-path="url(#${cid})">`;
     o.sol.forEach((t, j) => {
+      if (!mapHas(t, L, k)) return;
       const { rs, cs } = groupSegs(t, L), ins = 7 + (j % 3) * 5;
       let rects = '';
       for (const rr of rs) for (const cc of cs) {
@@ -996,12 +1066,13 @@ function renderKmap(host, o) {
     });
     svg += '</g>';
   }
-  host.innerHTML = `<div class="km${o.readonly ? ' ro' : ''}" style="--cols:${C};--rows:${R}">
+  const cap = L.maps > 1 ? `<figcaption class="kmcap"><i>${L.mapVar}</i> = ${k}</figcaption>` : '';
+  return `<figure class="kmwrap">${cap}<div class="km${o.readonly ? ' ro' : ''}" style="--cols:${C};--rows:${R}">
     <div class="km-corner" aria-hidden="true"><span class="rv">${L.rowVars}</span><span class="cv">${L.colVars}</span></div>
-    <div class="km-colhead" aria-hidden="true">${L.colCodes.map(s => `<span>${s}</span>`).join('')}</div>
-    <div class="km-rowhead" aria-hidden="true">${L.rowCodes.map(s => `<span>${s}</span>`).join('')}</div>
+    <div class="km-colhead" aria-hidden="true">${L.colCodes.map(x => `<span>${x}</span>`).join('')}</div>
+    <div class="km-rowhead" aria-hidden="true">${L.rowCodes.map(x => `<span>${x}</span>`).join('')}</div>
     <div class="km-body"><div class="km-cells">${cells}</div>
-    <svg class="km-groups" viewBox="0 0 ${C * 100} ${R * 100}" preserveAspectRatio="none" aria-hidden="true">${svg}</svg></div></div>`;
+    <svg class="km-groups" viewBox="0 0 ${C * 100} ${R * 100}" preserveAspectRatio="none" aria-hidden="true">${svg}</svg></div></div></figure>`;
 }
 function solTabsHTML(count, sel) {
   if (count <= 1) return '';
@@ -1063,6 +1134,7 @@ function stepsHTML(res) {
     h += `<li>扣掉 essential 後還沒涵蓋：${res.remaining.map(m => 'm' + m).join('、')}</li>`;
     h += `<li>從其餘 ${res.cand.length} 個 PI 中最少要再選 ${res.kMin} 個，符合的組合有 ${res.covers.length} 組`;
     h += res.solutions.length < res.covers.length ? `，比較 literal 數後保留 ${res.solutions.length} 組。` : '。';
+    if (res.truncated) h += '（組合太多，搜尋提早停止，列出的最簡解可能不完整。）';
     h += '</li>';
   }
   h += `</ul><p>最簡解：</p><ul>${res.solutions.map(s => `<li style="font-family:var(--serif);font-size:1.1rem">${exprHTML(s, n, form, false)}</li>`).join('')}</ul>`;
@@ -1101,6 +1173,7 @@ function renderSimplify(focusM) {
   $('#stepsBodyS').innerHTML = stepsHTML(res);
   $('#circS').innerHTML = circuitPanelHTML(S.n, sol, S.form, S.circ, xfs);
   setPressed($('#nSegS'), 'n', S.n);
+  $('#simplify .layout').classList.toggle('wide', S.n === 5);
   setPressed($('#formSegS'), 'form', S.form);
   setHL($('#simplify'), null);
   if (focusM !== undefined) { const el = $(`#kmapS [data-m="${focusM}"]`); if (el) el.focus(); }
@@ -1139,6 +1212,8 @@ function renderPractice() {
   }
   $('#showBtn').disabled = P.revealed;
   setPressed($('#nSegP'), 'n', P.n);
+  $('#practice .layout').classList.toggle('wide', P.n === 5);
+  renderKeypad(P.n);
   setPressed($('#formSegP'), 'form', P.form);
   setHL($('#practice'), null);
 }
@@ -1192,6 +1267,30 @@ function submitAnswer() {
   renderPractice();
 }
 
+/* ---------- 作答按鍵 ---------- */
+const ICON_XOR = '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 3.5v13M3.5 10h13" stroke="currentColor" stroke-width="1.6"/></svg>';
+const ICON_XNOR = '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="10" r="2.3" fill="currentColor"/></svg>';
+const KEYS_OP = [["'", '<span class="prime">\'</span>', '補數'], ['+', '+', 'OR'], ['(', '(', '左括號'], [')', ')', '右括號'], ['⊕', ICON_XOR, 'XOR'], ['⊙', ICON_XNOR, 'XNOR'], ['0', '0', '常數 0'], ['1', '1', '常數 1']];
+function renderKeypad(n) {
+  const kp = $('#keypad');
+  if (kp.dataset.n === String(n)) return;
+  kp.dataset.n = n;
+  const vars = VARS.slice(0, n).map(v => `<button type="button" class="key var" data-k="${v}">${v}</button>`).join('');
+  const ops = KEYS_OP.map(([k, t, a]) => `<button type="button" class="key op" data-k="${k}" aria-label="${a}">${t}</button>`).join('');
+  kp.innerHTML = vars + ops + '<button type="button" class="key fn" data-k="BS" aria-label="刪除前一個字">⌫</button><button type="button" class="key fn" data-k="CLR">清除</button>';
+}
+// 在游標位置插入（輸入框沒有焦點時接在最後面），不主動叫出手機鍵盤
+function keyInsert(inp, k) {
+  const focused = document.activeElement === inp, v = inp.value;
+  let s = focused ? inp.selectionStart : v.length, e = focused ? inp.selectionEnd : v.length;
+  if (k === 'CLR') { inp.value = ''; s = 0; }
+  else if (k === 'BS') {
+    if (s !== e) { inp.value = v.slice(0, s) + v.slice(e); }
+    else if (s > 0) { inp.value = v.slice(0, s - 1) + v.slice(s); s--; }
+  } else { inp.value = v.slice(0, s) + k + v.slice(e); s += k.length; }
+  if (focused) inp.setSelectionRange(s, s);
+}
+
 /* ---------- 初始化 ---------- */
 function init() {
   const ex = parseMD('m(1,3,7,11,15)+d(0,2,5)', 4);
@@ -1239,11 +1338,18 @@ function init() {
   $('#nextBtn').addEventListener('click', newProblem);
   $('#submitBtn').addEventListener('click', submitAnswer);
   $('#ansInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitAnswer(); });
+  $('#keypad').addEventListener('pointerdown', e => { if (e.target.closest('[data-k]')) e.preventDefault(); });
+  $('#keypad').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (b) keyInsert($('#ansInput'), b.dataset.k); });
+  $('#noKbd').addEventListener('change', e => {
+    const inp = $('#ansInput');
+    inp.setAttribute('inputmode', e.target.checked ? 'none' : 'text');
+    if (document.activeElement === inp) { inp.blur(); inp.focus(); }
+  });
   $('#showBtn').addEventListener('click', () => { P.revealed = true; P.sel = 0; renderPractice(); });
   $('#solTabsP').addEventListener('click', e => { const b = e.target.closest('[data-sol]'); if (!b) return; P.sel = +b.dataset.sol; renderPractice(); });
 }
 if (typeof document !== 'undefined') init();
-if (typeof module !== 'undefined') module.exports = { solve, exprStr, termStr, parseMD, canonicalMD, parseExpr, evalNode, judge, nodeStr, circuitSVG, randomProblem, kLayout, cellMinterm, solCost, groupSegs, circuitPlan, planGates, partsList, gateSummary, circuitPanelHTML, findXorForms, xorFormsFor, xorExprStr, xorGates, xorCircuitSVG, xorLineHTML, CONST_RATE };
+if (typeof module !== 'undefined') module.exports = { minCovers, mapHas, keyInsert, solve, exprStr, termStr, parseMD, canonicalMD, parseExpr, evalNode, judge, nodeStr, circuitSVG, randomProblem, kLayout, cellMinterm, solCost, groupSegs, circuitPlan, planGates, partsList, gateSummary, circuitPanelHTML, findXorForms, xorFormsFor, xorExprStr, xorGates, xorCircuitSVG, xorLineHTML, CONST_RATE };
 </script>
 </body>
 </html>
