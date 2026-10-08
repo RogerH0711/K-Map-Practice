@@ -18,6 +18,35 @@ async function v03DesktopTest(pg, out, ok) {
   ok('AC26 UI XOR tab', (await pg.textContent('#circS .gatecount')).includes('XOR'));
   await pg.screenshot({ path: out + '/desktop_5_xor.png', fullPage: true });
 }
+// v0.5：Π 輸入按鍵（AC48）、DeMorgan 與 X 說明（AC41、AC42）、OR-NAND 分頁（AC43）、練習 POS 題目（AC49）
+async function v05Test(b, url, out, errs, ok) {
+  const pg = await b.newPage({ viewport: { width: 375, height: 812 } });
+  pg.on('pageerror', e => errs.push('v0.5 pageerror ' + e.message));
+  await pg.goto(url);
+  await pg.click('#clearBtn');
+  for (const k of ['Π', '(', '1', ',', '3', ')']) await pg.click(`#keypadS [data-k="${k}"]`);
+  const v = await pg.inputValue('#mdInput');
+  const c1 = await pg.textContent('#kmapS [data-m="1"] .val'), c0 = await pg.textContent('#kmapS [data-m="0"] .val');
+  await pg.click('#kmapS [data-m="0"]');
+  const kept = await pg.inputValue('#mdInput');
+  await pg.click('#noKbdS');
+  const mode = await pg.getAttribute('#mdInput', 'inputmode');
+  ok('AC48 keypad Π', v === 'Π(1,3)' && c1 === '0' && c0 === '1' && kept === 'Π(1,3)+d(0)' && mode === 'none', [v, c1, c0, kept, mode].join(' | '));
+  await pg.fill('#mdInput', 'm(0,2,8,10)');
+  await pg.click('#formSegS [data-form="POS"]');
+  ok('AC41 UI F\'', (await pg.textContent('#demS')).includes("F' = B + D"));
+  await pg.fill('#mdInput', 'm(1,3,7,11,15)+d(0,2,5)');
+  await pg.click('#formSegS [data-form="SOP"]');
+  ok('AC42 UI X usage', (await pg.textContent('#dcS')).includes('d0、d2 當成 1'));
+  await pg.click('#circS [data-circ="on"]');
+  ok('AC43 UI OR-NAND tab', await pg.isVisible('#circS svg') && (await pg.textContent('#circS .gatecount')).includes('OR'));
+  ok('AC48 no h-scroll', await pg.evaluate(() => document.documentElement.scrollWidth) === 375);
+  await pg.screenshot({ path: out + '/mobile_6_v05.png', fullPage: true });
+  await pg.click('.tabs button[data-mode="practice"]');
+  await pg.click('#formSegP [data-form="POS"]');
+  ok('AC49 POS problem ΠM', (await pg.textContent('#probP')).includes('ΠM('));
+  await pg.close();
+}
 // AC37：作答按鍵（5 變數）
 async function keypadTest(b, url, errs, ok) {
   const pg = await b.newPage({ viewport: { width: 1280, height: 900 } });
@@ -134,6 +163,7 @@ async function fiveVarMobileTest(b, url, out, errs, ok) {
     await pg.close();
   }
   await keypadTest(b, url, errs, ok);
+  await v05Test(b, url, out, errs, ok);
   await fiveVarMobileTest(b, url, out, errs, ok);
   ok('no pageerror/console error', errs.length === 0, errs.join('\n'));
   await b.close();

@@ -162,7 +162,7 @@ function simulate(p, n, m) {
     for (let m = 0; m < (1 << n); m++) v.push(randCell(it % 2 === 0));
     for (const form of ['SOP', 'POS']) {
       const sol = solve(n, v, form).solutions[0];
-      for (const variant of ['std', 'nn', 'pure']) {
+      for (const variant of Object.keys(K.VARIANTS[form])) {
         const p = K.circuitPlan(n, sol, form, variant);
         if (p.constant) continue;
         for (let m = 0; m < (1 << n); m++) if (v[m] !== 2 && simulate(p, n, m) !== v[m]) bad++;
@@ -201,7 +201,7 @@ function simulate(p, n, m) {
       for (const s of r.solutions) {
         for (let m = 0; m < 32; m++) if (v[m] !== 2 && evalSol(s, 5, form, m) !== v[m]) bad++;
         if (judge(5, v, form, exprStr(s, 5, form)).kind !== 'correct') bad++;
-        for (const variant of ['std', 'nn', 'pure']) {
+        for (const variant of Object.keys(K.VARIANTS[form])) {
           const p = K.circuitPlan(5, s, form, variant);
           if (p.constant) continue;
           for (let m = 0; m < 32; m++) if (v[m] !== 2 && simulate(p, 5, m) !== v[m]) bad++;
@@ -258,6 +258,45 @@ function refCovers(rem, cand) {
   ok('AC35 parity XOR', cost.terms === 16 && xf.length > 0 && K.xorExprStr(5, xf[0], false) === 'A⊕B⊕C⊕D⊕E', JSON.stringify(cost));
   const parts = K.partsList(K.planGates(K.circuitPlan(5, sol, 'SOP', 'std'))).list;
   ok('AC36 16-input OR has no chip', parts.some(x => x.over && x.desc === '16 輸入 OR' && x.chips === 0), JSON.stringify(parts)); }
+// ===== v0.5：Π 輸入、DeMorgan、X 的使用、8 種兩層形式 =====
+// AC39：Π／M 輸入（列出 0 的格子）
+{ const p1 = parseMD('Π(1,3)', 4), p2 = parseMD('ΠM(1,3)+d(5)', 4), p3 = parseMD('M(1,3)', 4);
+  ok('AC39 Π', p1.ok && p1.style === 'max' && p1.ones.length === 14 && !p1.ones.includes(1) && !p1.ones.includes(3), JSON.stringify(p1));
+  ok('AC39 ΠM + d', p2.ok && p2.dcs.join() === '5' && !p2.ones.includes(5) && p2.ones.length === 13, JSON.stringify(p2));
+  ok('AC39 M == Π', p3.ok && p3.ones.join() === p1.ones.join());
+  ok('AC39 mixed m/M', !parseMD('m(1)+M(3)', 4).ok);
+  ok('AC39 M and d overlap', /M\(\) 和 d\(\)/.test(parseMD('M(1)+d(1)', 4).msg));
+  ok('AC39 5-var range', /0–31/.test(parseMD('Π(32)', 5).msg)); }
+// AC40：Π 與 m 寫法得到相同結果；輸入風格保留
+{ const a = V(4, 'Π(1,3,4,5,6,7,9,11,12,13,14,15)'), b = V(4, 'm(0,2,8,10)');
+  ok('AC40 same function', a.join() === b.join() && sols(4, 'Π(1,3,4,5,6,7,9,11,12,13,14,15)', 'SOP').join() === "B'D'");
+  ok('AC40 canonical style', canonicalMD(V(4, 'Π(1,3)+d(5)'), 'max') === 'Π(1,3)+d(5)', canonicalMD(V(4, 'Π(1,3)+d(5)'), 'max')); }
+// AC41：POS 的 DeMorgan 說明
+const stripTags = h => h.split('<').map((x, i) => (i ? x.slice(x.indexOf('>') + 1) : x)).join('');
+{ const sol = solve(4, V(4, 'm(0,2,8,10)'), 'POS').solutions[0], txt = stripTags(K.demHTML(sol, 4, 'POS'));
+  ok('AC41 F\' line', txt.includes("F' = B + D"), txt);
+  ok('AC41 SOP has no line', K.demHTML(solve(4, V(4, 'm(0,2,8,10)'), 'SOP').solutions[0], 4, 'SOP') === ''); }
+// AC42：每組解把哪些 X 當成 1／0
+{ const v = V(4, 'm(1,3,7,11,15)+d(0,2,5)'), r = solve(4, v, 'SOP');
+  const u1 = K.dcUsage(4, v, r.solutions[0], 'SOP'), u2 = K.dcUsage(4, v, r.solutions[1], 'SOP');
+  ok('AC42 sol 1', u1.as1.join() === '0,2' && u1.as0.join() === '5' && u1.ones.join() === '0,1,2,3,7,11,15', JSON.stringify(u1));
+  ok('AC42 sol 2', u2.as1.join() === '5' && u2.as0.join() === '0,2' && u2.ones.join() === '1,3,5,7,11,15', JSON.stringify(u2)); }
+// AC43–AC45：OR-NAND、NOR-OR、AND-NOR、NAND-AND
+{ let c = circ(3, 'm(0,1,2,5,6,7)', 'SOP', 'on');
+  ok('AC43 OR-NAND', c.gs === '3 個 NOT、3 個 2 輸入 OR、1 個 3 輸入 NAND，共 7 個閘' && c.parts === '7404x1 7432x1 7410x1', JSON.stringify(c));
+  c = circ(3, 'm(0,1,2,5,6,7)', 'SOP', 'no');
+  ok('AC43 NOR-OR', c.gs === '3 個 NOT、3 個 2 輸入 NOR、1 個 3 輸入 OR，共 7 個閘' && c.parts === '7404x1 7402x1 CD4075x1', JSON.stringify(c));
+  c = circ(4, 'm(0,2,8,10)', 'SOP', 'on');
+  ok('AC44 OR-NAND single term', c.gs === '1 個 2 輸入 OR、1 個 NAND（輸入短接當反相器），共 2 個閘', JSON.stringify(c));
+  c = circ(4, 'm(0,2,8,10)', 'SOP', 'no');
+  ok('AC44 NOR-OR single term', c.gs === '1 個 2 輸入 NOR，共 1 個閘', JSON.stringify(c));
+  c = circ(3, 'm(0,1,2,5,6,7)', 'POS', 'an');
+  ok('AC45 AND-NOR', c.gs === '3 個 NOT、2 個 3 輸入 AND、1 個 2 輸入 NOR，共 6 個閘' && c.parts === '7404x1 7411x1 7402x1', JSON.stringify(c));
+  c = circ(3, 'm(0,1,2,5,6,7)', 'POS', 'na');
+  ok('AC45 NAND-AND', c.gs === '3 個 NOT、2 個 3 輸入 NAND、1 個 2 輸入 AND，共 6 個閘' && c.parts === '7404x1 7410x1 7408x1', JSON.stringify(c)); }
+// AC47：16 種兩層組合表
+{ const t = K.formTableHTML();
+  ok('AC47 table', (t.match(/class="nd"/g) || []).length === 8 && (t.match(/class="dg"/g) || []).length === 8 && t.includes('退化成 AND'), t.length); }
 // Brute force 3-var 300
 let bf = 0;
 for (let it = 0; it < 300; it++) {
