@@ -1,4 +1,70 @@
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+// v0.3：常數題（AC20）、只用 NAND（AC22）、XOR 形式與分頁（AC26）
+async function v03DesktopTest(pg, out, ok) {
+  // AC20 UI：注入常數題，作答 1 判為正確
+  await pg.evaluate(() => { P.form = 'SOP'; P.vals = Array(1 << P.n).fill(1); P.revealed = false; P.attempted = false; P.solved = false; renderPractice(); });
+  await pg.fill('#ansInput', '1'); await pg.click('#submitBtn');
+  ok('AC20 UI constant', (await pg.textContent('#fbP')).includes('正確'));
+  // AC22 UI：電路分頁切換
+  await pg.click('.tabs button[data-mode="simplify"]');
+  await pg.click('#nSegS [data-n="3"]');
+  await pg.fill('#mdInput', 'm(0,1,2,5,6,7)');
+  await pg.click('#circS [data-circ="pure"]');
+  ok('AC22 UI NAND only', (await pg.textContent('#circS .gatecount')).includes('共 7 個閘') && await pg.isVisible('#circS svg'));
+  // AC26 UI：XOR 形式與分頁
+  await pg.fill('#mdInput', 'm(1,2,4,7)');
+  ok('AC26 UI XOR line', (await pg.textContent('#xorS')).includes('3 個 literal'));
+  await pg.click('#circS [data-circ="xor"]');
+  ok('AC26 UI XOR tab', (await pg.textContent('#circS .gatecount')).includes('XOR'));
+  await pg.screenshot({ path: out + '/desktop_5_xor.png', fullPage: true });
+}
+// AC37：作答按鍵（5 變數）
+async function keypadTest(b, url, errs, ok) {
+  const pg = await b.newPage({ viewport: { width: 1280, height: 900 } });
+  pg.on('pageerror', e => errs.push('keypad pageerror ' + e.message));
+  await pg.goto(url);
+  await pg.click('.tabs button[data-mode="practice"]');
+  await pg.click('#nSegP [data-n="5"]');
+  await pg.click('#ansInput');
+  for (const k of ['A', 'B', "'", '⊕', 'C']) await pg.click(`#keypad [data-k="${k}"]`);
+  const v1 = await pg.inputValue('#ansInput');
+  const focused = await pg.evaluate(() => document.activeElement.id === 'ansInput');
+  await pg.evaluate(() => document.querySelector('#ansInput').setSelectionRange(2, 2));
+  await pg.click('#keypad [data-k="("]');
+  const v2 = await pg.inputValue('#ansInput');
+  await pg.click('#keypad [data-k="BS"]');
+  const v3 = await pg.inputValue('#ansInput');
+  await pg.click('#keypad [data-k="CLR"]');
+  const v4 = await pg.inputValue('#ansInput');
+  await pg.click('#noKbd');
+  const mode = await pg.getAttribute('#ansInput', 'inputmode');
+  const keys = await pg.$$eval('#keypad .key.var', els => els.map(e => e.dataset.k).join(''));
+  ok('AC37 keypad', v1 === "AB'⊕C" && focused && v2 === "AB('⊕C" && v3 === "AB'⊕C" && v4 === '' && mode === 'none' && keys === 'ABCDE', [v1, focused, v2, v3, v4, mode, keys].join(' | '));
+  await pg.close();
+}
+// AC32 UI 與 AC38：5 變數兩張圖、手機版連續 200 題不水平捲動
+async function fiveVarMobileTest(b, url, out, errs, ok) {
+  const pg = await b.newPage({ viewport: { width: 375, height: 812 } });
+  pg.on('pageerror', e => errs.push('5var pageerror ' + e.message));
+  await pg.goto(url);
+  await pg.click('#nSegS [data-n="5"]');
+  await pg.fill('#mdInput', 'm(0,2,4,6,9,13,21,23,25,29,31)');
+  const maps = await pg.$$eval('#kmapS .kmwrap', els => els.length);
+  const expr = (await pg.textContent('#exprS')).replace(/\s/g, '');
+  ok('AC32 UI two maps', maps === 2 && expr === "F=A'B'E'+BD'E+ACE", maps + ' ' + expr);
+  let worst = await pg.evaluate(() => document.documentElement.scrollWidth);
+  await pg.screenshot({ path: out + '/mobile_5_5var.png', fullPage: true });
+  await pg.click('.tabs button[data-mode="practice"]');
+  await pg.click('#nSegP [data-n="5"]');
+  await pg.click('#dcP');
+  for (let i = 0; i < 200; i++) {
+    await pg.click('#newBtn');
+    if (i % 20 === 0) await pg.click('#showBtn');
+    worst = Math.max(worst, await pg.evaluate(() => document.documentElement.scrollWidth));
+  }
+  ok('AC38 5-var mobile no h-scroll', worst === 375, worst);
+  await pg.close();
+}
 (async () => {
   const b = await chromium.launch();
   const errs = [];
@@ -55,20 +121,20 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await pg.screenshot({ path: out + '/' + name + '_4_practice.png', fullPage: true });
     // AC17: 10 problems, answer correctly each via revealed? count correct by submitting solver answer
     if (name === 'desktop') {
-      let constCount = 0;
       for (let i = 0; i < 10; i++) {
         await pg.click('#nextBtn');
         const ans = await pg.evaluate(() => { const r = solve(P.n, P.vals, P.form); return exprStr(r.solutions[0], P.n, P.form); });
-        const c = await pg.evaluate(() => !P.vals.includes(0) || !P.vals.includes(1));
-        if (c) constCount++;
         await pg.fill('#ansInput', ans); await pg.click('#submitBtn');
       }
       const sc = await pg.textContent('#scoreP');
-      ok('AC17 UI', constCount === 0 && sc.includes('答對 10 題／作答 11 題'), sc);
+      ok('AC17 UI', sc.includes('答對 10 題／作答 11 題'), sc);
+      await v03DesktopTest(pg, out, ok);
     }
     if (name === 'mobile') ok('375px no h-scroll (end)', await pg.evaluate(() => document.documentElement.scrollWidth) === 375);
     await pg.close();
   }
+  await keypadTest(b, url, errs, ok);
+  await fiveVarMobileTest(b, url, out, errs, ok);
   ok('no pageerror/console error', errs.length === 0, errs.join('\n'));
   await b.close();
   console.log(res.every(x => x) ? 'ALL UI PASS' : 'UI FAILURES');

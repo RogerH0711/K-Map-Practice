@@ -28,34 +28,40 @@ TAICA「生成式AI：文字與圖像生成的原理與實務」第五週作業�
 
 ---
 
-## 2. 目前進度（2026-10-07，v0.2）
+## 2. 目前進度（2026-10-08，v0.4）
 
 | 項目 | 狀態 |
 | --- | --- |
-| 規格書 v1.3 | 完成；全文在 `README.md`，已與成品 v0.2 的實際行為逐條比對。v1.1 原始文件在 claude.ai Docs「K-Map Practice 規格書」 |
-| `index.html` v0.2 | 完成並已上線（PR #2 合併後確認線上檔案與 main 相同、頁尾顯示 v0.2）；不等價時的說明改為指出是哪一項圈錯、哪些格子漏圈（朋友回饋）。AC1–AC19 全數通過 |
+| 規格書 v1.5 | 完成；全文在 `README.md`，與成品 v0.4 一致。v1.1 原始文件在 claude.ai Docs「K-Map Practice 規格書」 |
+| `index.html` v0.4 | 5 變數（兩張 4×4）、最小覆蓋改 branch-and-bound、練習模式作答按鍵。AC1–AC38 全數通過；待使用者用 iPhone 實測「不跳出手機鍵盤」 |
+| `index.html` v0.3 | 同學試用三點回饋：常數題、NAND／NOR 等價電路與 74 系列用料、XOR 作答與 XOR 形式偵測（在 claude.ai 對話中做好，再合併到 v0.2 之上）。AC1–AC29 通過 |
+| `index.html` v0.2 | 已上線；不等價時的說明改為指出是哪一項圈錯、哪些格子漏圈（朋友回饋） |
 | SonarQube Cloud | repo 改 public 後會自動檢查每個 PR；PR #2 經兩輪修正後 Quality Gate 通過。規則與經過見第 5 節第 3 點 |
 | GitHub repo | 已建立 `RogerH0711/K-Map-Practice`，`index.html` v0.1 已在 main；2026-10-07 在 Claude Code 重跑第 5 節全部測試通過 |
 | GitHub Pages | 已上線：https://rogerh0711.github.io/K-Map-Practice/ （repo 改為 public 後啟用，從 main / root 發布）。2026-10-07 確認：線上檔案與 main 的 `index.html` 完全相同；用 Chromium 開線上網址，1280 px 與 375 px 都能正常化簡、無水平捲動、無 console error；使用者本人也已用瀏覽器開啟確認 |
-| 手機實測、使用者回饋 | 本人實測無問題，iPhone 實機操作正常（AC18）；朋友回饋「不等價的解釋很奇怪」→ v0.2 |
+| 手機實測、使用者回饋 | 本人實測無問題，iPhone 實機操作正常（AC18）；朋友回饋「不等價的解釋很奇怪」→ v0.2；同學三點回饋 → v0.3 |
 | 截圖、繳交文字 | 2026-10-07 已用 Playwright 對線上網址截圖 4 張（多解切換與連動標示、化簡過程、練習回饋、手機版），並擬好繳交文字草稿（HTML，複製後貼進 NTU COOL）；截圖另存一份在 repo 的 `screenshots/`，README 開頭的「畫面截圖」引用。使用者已把截圖上傳到 NTU COOL 編輯器並貼上繳交文字 |
 
 ---
 
-## 3. 規格書（v1.3，全文在 `README.md`）
+## 3. 規格書（v1.5，全文在 `README.md`）
 
 規格書全文以 repo 根目錄的 `README.md` 為準，開始工作前也要讀。README 是公開頁面，修改時措辭要適合給評分者與使用者看。改功能時，同一個 PR 要同步更新 README 的功能、判分規則、驗收標準與版本紀錄，以及本檔第 6 節的迭代紀錄。
 
 README 的結構：
 1. 專案概述
 2. 動機與使用情境
-3. 功能 F1–F10，含判分規則與式子語法
-4. 驗收標準 AC1–AC19
+3. 功能 F1–F14，含判分規則與式子語法
+4. 驗收標準 AC1–AC38
 5. 畫面配置與操作流程
 6. 技術規格
 7. 不做的範圍
 
 另有測試摘要與版本紀錄。
+
+v1.5 相對 v1.4：支援 5 變數（F1、F5、F10、F12 修改）、新增 F14 作答按鍵、AC30–AC38；化簡演算法改為 branch-and-bound；不做範圍改為 6 變數以上。
+
+v1.4 相對 v1.3：同學三點回饋。F9 改為約 1/12 出常數題；判分規則加入「等價但用了 XOR」；式子語法加入 XOR／XNOR；新增 F11 等價電路、F12 麵包板用料、F13 XOR 形式；AC17 改寫，新增 AC20–AC29；不做範圍移除 NAND／NOR 轉換與 XOR。
 
 v1.3 相對 v1.2：只把規格改成與成品 v0.2 的實際行為一致，程式沒有改。
 - AC7 項的順序
@@ -70,19 +76,22 @@ v1.3 相對 v1.2：只把規格改成與成品 v0.2 的實際行為一致，程�
 
 ---
 
-## 4. `index.html` 程式結構（v0.2）
+## 4. `index.html` 程式結構（v0.4）
 
 全部在一個 `<script>` 裡，前半是純邏輯、後半是畫面：
 
 | 區塊 | 主要函式 | 說明 |
 | --- | --- | --- |
-| 基本定義 | `kLayout`、`cellMinterm`、`literals`、`termStr`、`exprStr`、`solCost` | 版面（Gray code）、項的表示法 `{v, mask, cov}`（mask 的 bit = 1 代表 `-`） |
-| 化簡 | `solve(n, vals, form)` | vals 每格 0／1／2（2 = X）；回傳 rounds、pis、ess、remaining、cand、kMin、covers、solutions。POS 的解依變數順序排序 |
+| 基本定義 | `kLayout`、`cellMinterm(L, r, c, k)`、`mapHas`、`literals`、`termStr`、`exprStr`、`solCost` | 版面（Gray code；5 變數 `maps = 2`、`mapVar = 'A'`，k 為第幾張圖）、項的表示法 `{v, mask, cov}`（mask 的 bit = 1 代表 `-`） |
+| 化簡 | `solve(n, vals, form)`、`minCovers(remaining, cand, cap, budget)` | vals 每格 0／1／2（2 = X）；回傳 rounds、pis、ess、remaining、cand、kMin、covers、truncated、solutions。minCovers 為 branch-and-bound：挑候選最少的格子分支，分支 i 禁用前面的候選（每組覆蓋只找到一次），以「剩餘格子數 ÷ 單一 PI 最多能蓋幾格」為下界；節點上限 400000，超過時 truncated = true。POS 的解依變數順序排序 |
 | 輸入解析 | `parseMD`、`valsFromMD`、`canonicalMD` | m()/d() 的解析與正規化 |
-| 練習判分 | `parseExpr`、`evalNode`、`sopCost`、`posCost`、`nodeStr`、`answerShape`、`topItems`、`diffGroups`、`judge`、`randomProblem` | `judge` 回傳 kind：syntax／wrong／form／notmin／correct；wrong 另含 `groups`（type：over 圈到不該圈的格子／under 漏圈／diff 非 SOP、POS 形式），畫面由 `groupHTML` 依 `GROUP_TEXT` 句型表轉成文字 |
-| 電路 | `circuitSVG`、`gatePath`、`orBack` | 變數匯流排 + NOT + 兩層閘；第一層閘填入與 K-map 圈相同的顏色 |
-| K-map 圈 | `segments`、`groupSegs`、`renderKmap` | 環繞的圈拆成多段，用 clipPath 裁切成「開口」造型 |
-| 畫面 | `renderSimplify`、`renderPractice`、`stepsHTML`、`piTableHTML`、`setHL`、`bindHL` | 狀態物件 `S`（化簡）、`P`（練習）；每次狀態變動整塊重繪 |
+| 練習判分 | `parseExpr`（sum → xr → prod → factor，xr 為 XOR／XNOR 層）、`evalNode`、`hasXor`、`constCost`、`sopCost`、`posCost`、`nodeStr`、`answerShape`、`topItems`、`diffGroups`、`judge`、`randomProblem(n, withDc, rnd)`、`CONST_RATE` | `judge` 回傳 kind：syntax／wrong／xor／form／notmin／correct；wrong 另含 `groups`（type：over 圈到不該圈的格子／under 漏圈／diff 非 SOP、POS 形式），畫面由 `groupHTML` 依 `GROUP_TEXT` 句型表轉成文字 |
+| 電路 | `circuitPlan(n, sol, form, variant)`、`planGates`、`circuitSVG(n, plan, form, sol)`、`gate`、`invSVG`、`busLayout`、`busSVG` | variant：std（AND-OR／OR-AND）、nn（NAND-NAND／NOR-NOR）、pure（只用 NAND／NOR）。plan 記錄每項的輸入（單一 literal 在 nn／pure 會取補數）、兩層閘種類、是否有第二層、反相器種類；第一層閘填入與 K-map 圈相同的顏色 |
+| XOR 形式 | `findXorForms`、`xorFormsFor`、`xorParts`、`xorExprStr`、`xorGates`、`xorCircuitSVG` | 表示法 `{S, pm, pv, even}`：S 為 XOR 的變數位元、pm／pv 為乘積項的 mask 與值 |
+| 用料與面板 | `CHIPS`、`CHIP_DESC`、`gateSummary`、`partsList`、`partsHTML`、`circuitPanelHTML`、`xorLineHTML` | 面板含分頁、說明、SVG、閘數、用料表 |
+| K-map 圈 | `segments`、`groupSegs`、`renderKmap`、`oneMapHTML` | 環繞的圈拆成多段，用 clipPath 裁切成「開口」造型；5 變數每張圖只畫 `mapHas` 為真的 group |
+| 作答按鍵 | `KEYS_OP`、`ICON_XOR`、`ICON_XNOR`、`renderKeypad(n)`、`keyInsert(inp, k)` | 按鍵在 pointerdown 時 preventDefault，避免作答框失去焦點；⊕、⊙ 用 SVG 圖示 |
+| 畫面 | `renderSimplify`、`renderPractice`、`stepsHTML`、`piTableHTML`、`setHL`、`bindHL` | 狀態物件 `S`（化簡）、`P`（練習），兩者都有 `circ`（目前電路分頁）；每次狀態變動整塊重繪 |
 
 檔尾有 `if (typeof module !== 'undefined') module.exports = {...}`，方便用 Node 直接載入邏輯做測試。
 
@@ -95,16 +104,19 @@ v1.3 相對 v1.2：只把規格改成與成品 v0.2 的實際行為一致，程�
 每輪修改後都要跑，結果寫進迭代紀錄。測試腳本與執行指令在 `tests/`（見 `tests/README.md`）。
 
 1. **邏輯測試（Node）**：用 Python 把 `index.html` 的 `<script>` 內容抽出成 `km.js`，`require` 後跑（隨機測資用固定種子的 `rand()`，每次執行內容相同）：
-   - AC1、AC3–AC17、AC19 的測資逐條比對（POS 比對前先去掉空白；多解時連解與項的順序一起比對）
+   - AC1、AC3–AC17、AC19–AC28 的測資逐條比對（POS 比對前先去掉空白；多解時連解與項的順序一起比對；閘數與用料用 `gateSummary`、`partsList` 逐字比對）
+   - AC17：用 `randomProblem(n, dc, rand)` 出 6000 題，常數題比例在 5%–12%
+   - AC29：3000 組隨機函數，三種電路依 plan 逐格模擬；XOR 形式字串丟回 `parseExpr` 必須等價
+   - AC30–AC36：5 變數；AC33 同時量測化簡時間（< 100 ms）；AC34 以窮舉組合當參考答案比對 branch-and-bound
+   - 壓力測試：5 變數、約 40% 為 X 的 300 組，不觸發搜尋上限
    - 2000 組隨機錯誤答案：`groups` 必須剛好涵蓋每個不同的格子一次，且 over 類一定有指出是哪一項
    - 3000 組隨機函數（2–4 變數、含／不含 X）：每組最簡解都要與原函數等價，且把解答丟回 `judge` 必須判為 correct
    - 3 變數 300 組：以暴力窮舉所有 implicant 組合，確認 `solve` 的（項數, literal 數）就是最小值
-2. **畫面測試（Playwright + Chromium）**：開 `file://.../index.html`，截圖 1280×900 桌機與 375×812 手機；檢查 `document.documentElement.scrollWidth === 375`、沒有 `pageerror` 與 console error；操作切換解、切 POS、展開化簡過程、練習模式送出錯誤答案與看解答，各截一張圖目視檢查。
+2. **畫面測試（Playwright + Chromium）**：開 `file://.../index.html`，截圖 1280×900 桌機與 375×812 手機；檢查 `document.documentElement.scrollWidth === 375`、沒有 `pageerror` 與 console error；操作切換解、切 POS、展開化簡過程、練習模式送出錯誤答案與看解答，各截一張圖目視檢查。桌機另外測：注入常數題作答 1（AC20）、切到「只用 NAND」看閘數（AC22）、XOR 形式與分頁（AC26）。另開頁面測作答按鍵（AC37），以及 375 px 下 5 變數兩張圖與連續 200 題的最大 `scrollWidth`（AC32 UI、AC38）。
 
-v0.1、v0.2 的測試結果：上述全部通過。
+v0.1–v0.4 的測試結果：上述全部通過。
 
-已知、尚未處理的小問題（2026-10-07 重測時發現，不影響 AC）：
-- 函數本身是常數（例如全 1 加 X）時，`judge` 對答案 `1`／`0` 回傳 `form` 而非 `correct`。練習模式的 `randomProblem` 不會出常數題，所以使用者碰不到。
+已解決：原本「函數是常數時，`judge` 對答案 `1`／`0` 回傳 `form`」的小問題，v0.3 加入 `constCost` 後判為 correct（AC20），隨機 3000 組測試也不再排除常數函數。
 
 3. **SonarQube Cloud（PR 自動檢查）**
 
@@ -133,6 +145,10 @@ v0.1、v0.2 的測試結果：上述全部通過。
 
 | 版本 | 日期 | 發現的問題／需求 | 給 AI 的指示 | 結果 |
 | --- | --- | --- | --- | --- |
+| 程式 v0.4 | 2026-10-08 | 依規格 v1.5 實作；原本用窮舉組合找最小覆蓋，5 變數時可能組合爆炸；截圖發現手機上 5 變數練習題的 Σm(...) 太長造成水平捲動、⊕ 與 ⊙ 按鍵在不同字型下大小不一 | 5 變數畫兩張 4×4；最小覆蓋改 branch-and-bound；超過 8 輸入的閘在用料表標示沒有現成晶片；題目算式允許任意位置斷行；⊕、⊙ 按鍵改用 SVG 圖示，按鍵改為等寬格狀排列 | AC1–AC38 通過；branch-and-bound 與窮舉組合結果一致；5 變數化簡最慢約 2 ms；375 px 下 200 題隨機 5 變數題沒有水平捲動 |
+| 規格 v1.5 | 2026-10-08 | 想支援 5 變數；⊕、^、⊙ 在手機內建鍵盤很難打出來 | 5 變數用兩張 4×4（A = 0／A = 1）；練習模式作答框加螢幕按鍵，可選擇不跳出手機鍵盤 | 修改 F1、F5、F10、F12，新增 F14、AC30–AC38；不做範圍改為 6 變數以上 |
+| 程式 v0.3 | 2026-10-08 | 依規格 v1.4 實作（在 claude.ai 對話中完成，當時從 v0.1 分支出去，再三方合併到 v0.2 之上；衝突只有頁尾版本、`judge` 的 wrong 分支與 exports）；截圖發現 ⊕ 符號在部分字型下過大、手機上電路分頁換行後框線破版 | 實作常數題、三種等價電路、閘數與用料表、XOR 作答與 XOR 形式偵測；⊕ 改用縮小的數學字型；電路分頁改成可換行的圓角按鈕；`judge` 先算 v0.2 的 `groups`，再判斷是否用了 XOR | AC1–AC29 通過；隨機 3000 組函數模擬三種電路輸出皆正確；偵測到的 XOR 形式皆等價；桌機與 375 px 無水平捲動、無 console error |
+| 規格 v1.4 | 2026-10-08 | 同學試用回饋：(1) 練習題沒有全 0／全 1；(2) 想看 NAND-NAND 等等價電路；(3) 能不能用 XOR | 討論後決定：常數題以約 1/12 機率混入；等價電路含 NAND-NAND／NOR-NOR、只用 NAND／NOR，加閘數與 74 系列用料表；練習接受 XOR 作答但不計答對，化簡模式偵測更省的 XOR 形式 | 修改 F9 與判分規則，新增 F11–F13、AC20–AC29，AC17 改寫；不做範圍移除 NAND／NOR 轉換與 XOR |
 | 規格 v1.3 | 2026-10-07 | 規格書要同步到與成品一致，並放到 README.md；比對時發現 AC7 項的順序、AC12 輪次、AC4 訊息與成品不同，判分規則少了「等價但不是要求的形式」，還有幾個成品行為規格沒寫 | 以成品 v0.2 的實際行為為準改寫規格（用瀏覽器逐項確認），全文放 README.md；CLAUDE.md 第 3 節改為指向 README，避免兩份不一致；AC7 測試改為連順序一起比對 | README.md 完成；程式沒有改；邏輯與畫面測試全部通過 |
 | 程式 v0.2（SonarQube 修正） | 2026-10-07 | 開 PR #2 後 SonarQube Cloud 的 Quality Gate 沒過（Security C、Maintainability B）。第 1 輪 4 個 issue 都在 `tests/logic_test.js`：沒用到的變數 `N`、`Math.random()`。修完後第 2 輪又出 3 個：`\| 0` 建議改 `Math.trunc`；`Math.random` 換成 `rand` 時改到的兩行，原本的巢狀三元運算子被算成新程式碼 | 刪掉沒用到的變數；測試改用固定種子亂數，最後改成不用位元運算的 Park–Miller，因為 `\| 0` 改 `Math.trunc` 語意不同；巢狀三元運算子抽成 `randCell()`。另外依本機 sonarjs 檢查，把 `index.html` 新增的判分說明改寫，拿掉巢狀三元運算子，行為不變 | 第 3 輪 Quality Gate 通過；測試全部通過，且隨機測資每次相同、可重現；PR #2 合併，線上確認為 v0.2 |
 | 程式 v0.2／規格 v1.2 | 2026-10-07 | 朋友練習 `m(5,7,14,15)` 答 `BD + ABC`，回饋只寫「K-map 上紅框的格子算錯了；F 應為 0，你的式子卻是 1：m13」，覺得解釋很奇怪：看不出是哪一項錯、錯在哪 | 不等價時改成指出原因：哪一項包含了不該圈的格子（例如「BD 這一項包含 m13，但題目在這格是 0…這個圈圈到了 0」），哪些格子漏圈；POS 用和項說明；同原因的格子合併成一句；頁尾改 v0.2 | 新增 AC19 與 2000 組隨機錯誤答案測試；AC1–AC19、隨機與暴力窮舉測試、桌機／375 px 畫面測試全部通過 |
@@ -147,7 +163,11 @@ v0.1、v0.2 的測試結果：上述全部通過。
 - [x] 建 GitHub public repo `RogerH0711/K-Map-Practice`，`index.html` 已在 main
 - [x] repo 改為 public → Settings → Pages → Deploy from a branch → main / (root)；網址 `https://rogerh0711.github.io/K-Map-Practice/` 已上線
 - [x] 用手機與電腦實際操作，收集想改的地方 → 第二輪修改（v0.2：不等價說明）
-- [ ] 繼續收集回饋 → v0.3（若有），每輪一個 commit
+- [x] 同學三點回饋 → v0.3
+- [x] 5 變數、作答按鍵 → v0.4
+- [ ] iPhone Safari 實測 v0.4：5 變數版面、作答按鍵、「不跳出手機鍵盤」
+- [ ] 繼續收集回饋，每輪一個 commit
+- [ ] 繳交前更新截圖（目前 `screenshots/` 是 v0.2 的畫面）
 - [x] 規格書同步更新到與成品一致，全文放在 `README.md`（規格 v1.3）
 - [x] 本週 `.ipynb`：使用者表示只需在 NTU COOL 交文字
 - [x] 截圖 4 張：多解切換／hover 標示、化簡過程、練習模式回饋、手機版
