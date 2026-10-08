@@ -140,6 +140,16 @@ details.steps summary{cursor:pointer;font-weight:700;min-height:36px;display:fle
 .circuit svg.has-hl .term:not(.hl){opacity:.22}
 .circuit .term.hl .w{stroke-width:2.8}
 .const{margin:0;color:var(--ink2)}
+.circtabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.circtabs button{border:1.5px solid var(--ink);background:var(--sheet);border-radius:999px;padding:2px 14px;min-height:38px;cursor:pointer;font-size:.92rem}
+.circtabs button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.xop{font-family:"Cambria Math","STIX Two Math","Segoe UI Symbol","Apple Symbols",sans-serif;font-style:normal;font-size:.72em;margin:0 .12em;vertical-align:.08em}
+.circnote .xe{font-family:var(--serif);font-size:1.05rem}
+.circnote{margin:0 0 8px}
+.gatecount{margin:8px 0 0}
+h4.partsh{margin:14px 0 6px;font-size:.92rem;color:var(--ink2)}
+.xorline{margin:2px 0 8px;padding:8px 12px;border-left:4px solid var(--ink2);background:var(--sheet);font-size:.95rem}
+.xorline .xe{font-family:var(--serif);font-size:1.25rem;white-space:nowrap;margin:0 2px}
 
 /* practice */
 .prob{font-family:var(--serif);font-size:1.25rem;margin:4px 0 0}
@@ -206,6 +216,7 @@ footer ul{margin:4px 0 8px;padding-left:20px}
         <div id="solTabsS" class="soltabs"></div>
         <div id="exprS" class="expr" aria-live="polite"></div>
         <p id="metaS" class="meta"></p>
+        <p id="xorS" class="xorline" hidden></p>
         <h3>Prime implicants</h3>
         <div class="scroll" id="piS"></div>
         <details class="steps" id="stepsS">
@@ -213,7 +224,7 @@ footer ul{margin:4px 0 8px;padding-left:20px}
           <div id="stepsBodyS"></div>
         </details>
         <h3>邏輯閘電路</h3>
-        <div class="circuit" id="circS"></div>
+        <div id="circS"></div>
       </div>
     </div>
   </section>
@@ -252,8 +263,9 @@ footer ul{margin:4px 0 8px;padding-left:20px}
           <div id="solTabsP" class="soltabs"></div>
           <div id="exprP" class="expr"></div>
           <p id="metaP" class="meta"></p>
+          <p id="xorP" class="xorline" hidden></p>
           <h3>邏輯閘電路</h3>
-          <div class="circuit" id="circP"></div>
+          <div id="circP"></div>
         </div>
       </div>
     </div>
@@ -268,10 +280,13 @@ footer ul{margin:4px 0 8px;padding-left:20px}
         <li>化簡：點格子或輸入 m()/d()，右側會即時列出所有最簡解，K-map 上同步畫出圈法。</li>
         <li>把滑鼠移到算式中的某一項（手機上點一下），K-map 上對應的圈與電路中的邏輯閘會一起標示出來。</li>
         <li>最簡的定義：項數最少；項數相同時，literal 總數最少。</li>
+        <li>電路可以切換 AND-OR、NAND-NAND、只用 NAND（POS 則是 OR-AND、NOR-NOR、只用 NOR），下方列出閘數與麵包板需要的 74 系列晶片。函數可以寫成更省的 XOR 形式時，會多一個「XOR 形式」分頁。</li>
         <li>練習：選好設定後按「出新題目」，輸入答案後送出。補數寫成 A'（也可以用 ~A、!A），AND 直接相連或用 *，OR 用 +，POS 用括號，例如 (A+B')(C+D)。</li>
+        <li>偶爾會出 F = 0 或 F = 1 的常數題，答案直接寫 0 或 1。</li>
+        <li>XOR 寫成 ⊕ 或 ^，XNOR 寫成 ⊙，優先順序是 NOT &gt; AND &gt; XOR &gt; OR，不確定時加括號。用了 XOR 的答案即使等價，也不算 SOP／POS。</li>
       </ul>
     </details>
-    <p>K-Map Practice 版本 v0.2</p>
+    <p>K-Map Practice 版本 v0.3</p>
   </div>
 </footer>
 
@@ -413,7 +428,7 @@ function canonicalMD(vals) {
 
 /* ========== 布林式解析（練習模式） ========== */
 function parseExpr(src, n) {
-  const s = src.replace(/[’′‘`´]/g, "'").replace(/＋/g, '+').replace(/（/g, '(').replace(/）/g, ')')
+  const s = src.replace(/[’′‘`´]/g, "'").replace(/＋/g, '+').replace(/（/g, '(').replace(/）/g, ')').replace(/⊻/g, '⊕')
     .replace(/[·•∙⋅×.]/g, '*').replace(/[¬～]/g, '~');
   const toks = [];
   for (let p = 0; p < s.length; p++) {
@@ -424,6 +439,8 @@ function parseExpr(src, n) {
       if (i < 0 || i >= n) throw { msg: `「${ch}」不是這題的變數，只能用 ${VARS.slice(0, n).join('、')}`, pos: p };
       toks.push({ t: 'var', i, pos: p });
     } else if (ch === '0' || ch === '1') toks.push({ t: 'const', v: +ch, pos: p });
+    else if (ch === '⊕' || ch === '^') toks.push({ t: '⊕', pos: p });
+    else if (ch === '⊙') toks.push({ t: '⊙', pos: p });
     else if ("'+*()~!".includes(ch)) toks.push({ t: ch, pos: p });
     else throw { msg: `無法辨識的符號「${ch}」`, pos: p };
   }
@@ -431,14 +448,24 @@ function parseExpr(src, n) {
   let k = 0;
   const peek = () => toks[k], end = () => k >= toks.length;
   const startsFactor = t => t && (t.t === 'var' || t.t === 'const' || t.t === '(' || t.t === '~' || t.t === '!');
+  // 優先順序：NOT > AND > XOR／XNOR > OR
   function sum() {
-    const items = [prod()];
+    const items = [xr()];
     while (!end() && peek().t === '+') {
       const op = toks[k++];
       if (end()) throw { msg: '「+」後面少了一項', pos: op.pos };
-      items.push(prod());
+      items.push(xr());
     }
     return items.length === 1 ? items[0] : { op: 'or', items };
+  }
+  function xr() {
+    let node = prod();
+    while (!end() && (peek().t === '⊕' || peek().t === '⊙')) {
+      const op = toks[k++];
+      if (end()) throw { msg: `「${op.t}」後面少了一項`, pos: op.pos };
+      node = { op: op.t === '⊕' ? 'xor' : 'xnor', a: node, b: prod() };
+    }
+    return node;
   }
   function prod() {
     const items = [factor()];
@@ -480,16 +507,31 @@ function evalNode(node, m, n) {
     case 'not': return 1 - evalNode(node.a, m, n);
     case 'and': return node.items.every(x => evalNode(x, m, n)) ? 1 : 0;
     case 'or': return node.items.some(x => evalNode(x, m, n)) ? 1 : 0;
+    case 'xor': return evalNode(node.a, m, n) ^ evalNode(node.b, m, n);
+    case 'xnor': return 1 - (evalNode(node.a, m, n) ^ evalNode(node.b, m, n));
   }
 }
+function hasXor(node) {
+  if (node.op === 'xor' || node.op === 'xnor') return true;
+  if (node.op === 'not') return hasXor(node.a);
+  if (node.op === 'and' || node.op === 'or') return node.items.some(hasXor);
+  return false;
+}
 const isLit = x => x.op === 'var' || (x.op === 'not' && x.a.op === 'var');
+// 常數答案（0 或 1）的成本，和 solve() 對常數函數的表示一致
+function constCost(ast, form) {
+  const one = ast.v === 1;
+  return form === 'SOP' ? { terms: one ? 1 : 0, lits: 0 } : { terms: one ? 0 : 1, lits: 0 };
+}
 function sopCost(ast) {
+  if (ast.op === 'const') return constCost(ast, 'SOP');
   const terms = ast.op === 'or' ? ast.items : [ast];
   let lits = 0;
   for (const t of terms) { const fs = t.op === 'and' ? t.items : [t]; if (!fs.every(isLit)) return null; lits += fs.length; }
   return { terms: terms.length, lits };
 }
 function posCost(ast) {
+  if (ast.op === 'const') return constCost(ast, 'POS');
   const terms = ast.op === 'and' ? ast.items : [ast];
   let lits = 0;
   for (const t of terms) { const fs = t.op === 'or' ? t.items : [t]; if (!fs.every(isLit)) return null; lits += fs.length; }
@@ -542,6 +584,7 @@ function judge(n, vals, form, src) {
     if (got !== vals[m]) (got ? extra : miss).push(m);
   }
   if (extra.length || miss.length) { const groups = diffGroups(ast, n, form, extra, miss); return { kind: 'wrong', extra, miss, groups }; }
+  if (hasXor(ast)) return { kind: 'xor' };
   const res = solve(n, vals, form), best = solCost(res.solutions[0], n);
   const cost = form === 'SOP' ? sopCost(ast) : posCost(ast);
   if (!cost) return { kind: 'form' };
@@ -549,96 +592,344 @@ function judge(n, vals, form, src) {
   if (dt < 0 || (dt === 0 && dl <= 0)) return { kind: 'correct' };
   return { kind: 'notmin', dt, dl };
 }
-function randomProblem(n, withDc) {
+const CONST_RATE = 1 / 12;   // 常數題（F = 0 或 F = 1）出現的機率
+function randomProblem(n, withDc, rnd = Math.random) {
+  if (rnd() < CONST_RATE) {
+    const c = rnd() < 0.5 ? 1 : 0, v = [];
+    for (let m = 0; m < (1 << n); m++) v.push(withDc && rnd() < 0.25 ? 2 : c);
+    if (!v.includes(c)) v[0] = c;
+    return v;
+  }
   for (;;) {
     const v = [];
-    for (let m = 0; m < (1 << n); m++) v.push(withDc && Math.random() < 0.14 ? 2 : (Math.random() < 0.45 ? 1 : 0));
+    for (let m = 0; m < (1 << n); m++) v.push(withDc && rnd() < 0.14 ? 2 : (rnd() < 0.45 ? 1 : 0));
     if (v.includes(1) && v.includes(0)) return v;
   }
 }
 
 /* ========== 邏輯閘電路（SVG） ========== */
+const GW = 48, TOP = 30;
+const GATE_NAME = { not: 'NOT', and: 'AND', or: 'OR', nand: 'NAND', nor: 'NOR', xor: 'XOR', xnor: 'XNOR' };
 function orBack(py, cy, h, w) { const t = (py - (cy - h / 2)) / h; return 2 * t * (1 - t) * w * 0.3; }
-function gatePath(type, x, cy, w, h, col) {
+function gatePath(base, x, cy, w, h, col) {
   const top = cy - h / 2, bot = cy + h / 2;
   const fill = col ? ` style="fill:${col};fill-opacity:.3"` : '';
-  if (type === 'and') {
+  if (base === 'and') {
     const rx = Math.min(h / 2, w * 0.55);
     return `<path class="gate"${fill} d="M${x},${top} H${x + w - rx} A${rx},${h / 2} 0 0 1 ${x + w - rx},${bot} H${x} Z"/>`;
   }
   return `<path class="gate"${fill} d="M${x},${top} Q${x + w * 0.3},${cy} ${x},${bot} Q${x + w * 0.58},${bot} ${x + w},${cy} Q${x + w * 0.58},${top} ${x},${top} Z"/>`;
 }
-function circuitSVG(n, sol, form) {
-  const terms = sol.map((t, j) => ({ j, lits: literals(t, n, form) }));
-  if (!terms.length || terms.some(t => !t.lits.length)) {
-    const v = exprStr(sol, n, form);
-    return `<p class="const">F = ${v} 是常數，不需要邏輯閘，輸出直接接${v === '1' ? '高電位（1）' : '低電位（0）'}。</p>`;
+// 水平方向的閘：回傳 SVG、輸出端 x、輸入腳在某個 y 的 x
+function gate(kind, x, cy, h, col) {
+  const base = kind === 'and' || kind === 'nand' ? 'and' : 'or';
+  const isX = kind === 'xor' || kind === 'xnor';
+  let svg = gatePath(base, x, cy, GW, h, col);
+  if (isX) svg += `<path class="w" d="M${x - 7},${cy - h / 2} Q${x - 7 + GW * 0.3},${cy} ${x - 7},${cy + h / 2}"/>`;
+  let out = x + GW;
+  if (kind === 'nand' || kind === 'nor' || kind === 'xnor') { svg += `<circle class="gate" cx="${out + 4}" cy="${cy}" r="4"/>`; out += 8; }
+  const pin = py => (base === 'and' ? x : x + orBack(py, cy, h, GW) - (isX ? 7 : 0));
+  return { svg, out, pin };
+}
+// 垂直方向的反相器（NOT，或輸入短接的 NAND／NOR），由匯流排在 TOP+8 分岔
+function invSVG(kind, bxi, cx) {
+  if (kind === 'not') {
+    const y0 = TOP + 14;
+    return { svg: `<path class="w" d="M${bxi},${TOP + 8} H${cx} V${y0}"/><path class="gate" d="M${cx - 8},${y0} L${cx + 8},${y0} L${cx},${y0 + 16} Z"/><circle class="gate" cx="${cx}" cy="${y0 + 20}" r="3.5"/>`, out: y0 + 23.5 };
   }
-  const g1 = form === 'SOP' ? 'and' : 'or', g2 = form === 'SOP' ? 'or' : 'and';
-  const tU = Array(n).fill(false), nU = Array(n).fill(false);
-  terms.forEach(t => t.lits.forEach(l => { (l.neg ? nU : tU)[l.i] = true; }));
-  const TOP = 30, gW = 48;
+  const y0 = TOP + 20;
+  const pins = `<path class="w" d="M${bxi},${TOP + 8} H${cx} V${y0 - 5} M${cx - 4},${y0 - 5} H${cx + 4} M${cx - 4},${y0 - 5} V${y0 + 2} M${cx + 4},${y0 - 5} V${y0 + 2}"/>`;
+  if (kind === 'nand') return { svg: pins + `<path class="gate" d="M${cx - 9},${y0} H${cx + 9} V${y0 + 6} A9,9 0 0 1 ${cx - 9},${y0 + 6} Z"/><circle class="gate" cx="${cx}" cy="${y0 + 18.5}" r="3.5"/>`, out: y0 + 22 };
+  return { svg: pins + `<path class="gate" d="M${cx - 9},${y0} Q${cx},${y0 + 5} ${cx + 9},${y0} Q${cx + 9},${y0 + 10} ${cx},${y0 + 17} Q${cx - 9},${y0 + 10} ${cx - 9},${y0} Z"/><circle class="gate" cx="${cx}" cy="${y0 + 20.5}" r="3.5"/>`, out: y0 + 24 };
+}
+function busLayout(n, tU, nU) {
   let x = 26; const bx = {}, nbx = {};
   for (let i = 0; i < n; i++) {
     if (!(tU[i] || nU[i])) continue;
     bx[i] = x;
-    if (nU[i]) { nbx[i] = x + 24; x += 24 + 40; } else x += 38;
+    if (nU[i]) { nbx[i] = x + 24; x += 64; } else x += 38;
   }
-  const g1x = x + 6, g1out = g1x + gW;
-  let y = TOP + 80;
-  terms.forEach(t => { const k = t.lits.length; t.h = k > 1 ? Math.max(30, k * 14 + 8) : 18; t.y = y + t.h / 2; y += t.h + 16; });
-  const busBottom = y - 10;
-  const P = [], G = terms.map(() => []);
+  return { bx, nbx, endX: x };
+}
+function busSVG(n, L, tU, nU, invKind, busBottom) {
+  const P = [];
   for (let i = 0; i < n; i++) {
-    if (bx[i] === undefined) continue;
-    P.push(`<text x="${bx[i]}" y="${TOP - 12}" text-anchor="middle" class="vl">${VARS[i]}</text>`);
-    P.push(`<line class="w" x1="${bx[i]}" y1="${TOP - 6}" x2="${bx[i]}" y2="${tU[i] ? busBottom : TOP + 8}"/>`);
+    if (L.bx[i] === undefined) continue;
+    const b = L.bx[i];
+    P.push(`<text x="${b}" y="${TOP - 12}" text-anchor="middle" class="vl">${VARS[i]}</text>`);
+    P.push(`<line class="w" x1="${b}" y1="${TOP - 6}" x2="${b}" y2="${tU[i] ? busBottom : TOP + 8}"/>`);
     if (nU[i]) {
-      const cx = nbx[i];
-      P.push(`<path class="w" d="M${bx[i]},${TOP + 8} H${cx} V${TOP + 14}"/>`);
-      if (tU[i]) P.push(`<circle class="dot" cx="${bx[i]}" cy="${TOP + 8}" r="3"/>`);
-      P.push(`<path class="gate" d="M${cx - 8},${TOP + 14} L${cx + 8},${TOP + 14} L${cx},${TOP + 30} Z"/><circle class="gate" cx="${cx}" cy="${TOP + 34}" r="3.5"/>`);
-      P.push(`<line class="w" x1="${cx}" y1="${TOP + 37.5}" x2="${cx}" y2="${busBottom}"/>`);
-      P.push(`<text x="${cx + 7}" y="${TOP + 56}" class="vl s">${VARS[i]}'</text>`);
+      const cx = L.nbx[i], iv = invSVG(invKind, b, cx);
+      if (tU[i]) P.push(`<circle class="dot" cx="${b}" cy="${TOP + 8}" r="3"/>`);
+      P.push(iv.svg);
+      P.push(`<line class="w" x1="${cx}" y1="${iv.out}" x2="${cx}" y2="${busBottom}"/>`);
+      P.push(`<text x="${cx + 7}" y="${iv.out + 18}" class="vl s">${VARS[i]}'</text>`);
     }
   }
+  return P.join('');
+}
+// 電路結構：variant = std（AND-OR／OR-AND）、nn（NAND-NAND／NOR-NOR）、pure（只用 NAND／NOR）
+function circuitPlan(n, sol, form, variant) {
+  const terms = sol.map((t, j) => ({ j, lits: literals(t, n, form) }));
+  if (!terms.length || terms.some(t => !t.lits.length)) return { constant: true, value: exprStr(sol, n, form) };
+  const sop = form === 'SOP', univ = variant !== 'std';
+  const g1 = sop ? (univ ? 'nand' : 'and') : (univ ? 'nor' : 'or');
+  const g2 = sop ? (univ ? 'nand' : 'or') : (univ ? 'nor' : 'and');
+  const T = terms.length;
+  const hasL2 = T >= 2 || (univ && terms[0].lits.length >= 2);
+  for (const t of terms) {
+    t.gate = t.lits.length >= 2;
+    // NAND-NAND／NOR-NOR 中，單一 literal 的項要先取補數才進第二層
+    t.ins = t.gate ? t.lits : [univ && hasL2 ? { i: t.lits[0].i, neg: !t.lits[0].neg } : t.lits[0]];
+  }
+  const tU = Array(n).fill(false), nU = Array(n).fill(false);
+  terms.forEach(t => t.ins.forEach(l => { (l.neg ? nU : tU)[l.i] = true; }));
+  const invKind = variant === 'pure' ? (sop ? 'nand' : 'nor') : 'not';
+  return { constant: false, terms, g1, g2, hasL2, tU, nU, invKind };
+}
+function planGates(plan) {
+  const gs = [];
+  plan.nU.forEach(u => { if (u) gs.push(plan.invKind === 'not' ? { kind: 'not', fanin: 1 } : { kind: plan.invKind, fanin: 2, tied: true }); });
+  plan.terms.forEach(t => { if (t.gate) gs.push({ kind: plan.g1, fanin: t.ins.length }); });
+  if (plan.hasL2) {
+    const T = plan.terms.length;
+    gs.push(T === 1 ? { kind: plan.g2, fanin: 2, tied: true } : { kind: plan.g2, fanin: T });
+  }
+  return gs;
+}
+function circuitSVG(n, plan, form, sol) {
+  const { terms, g1, g2, hasL2, tU, nU, invKind } = plan;
+  const L = busLayout(n, tU, nU);
+  const g1x = L.endX + 6;
+  const g1out = g1x + GW + (g1 === 'nand' || g1 === 'nor' ? 8 : 0);
+  let y = TOP + 80;
+  terms.forEach(t => { const k = t.ins.length; t.h = t.gate ? Math.max(30, k * 14 + 8) : 18; t.y = y + t.h / 2; y += t.h + 16; });
+  const busBottom = y - 10;
+  const P = [busSVG(n, L, tU, nU, invKind, busBottom)], G = terms.map(() => []);
+  const src = l => (l.neg ? L.nbx[l.i] : L.bx[l.i]);
   terms.forEach((t, j) => {
-    const col = COLORS[t.j % COLORS.length], k = t.lits.length;
-    if (k === 1) {
-      const l = t.lits[0], sx = l.neg ? nbx[l.i] : bx[l.i];
+    if (!t.gate) {
+      const sx = src(t.ins[0]);
       G[j].push(`<line class="w" x1="${sx}" y1="${t.y}" x2="${g1out}" y2="${t.y}"/><circle class="dot" cx="${sx}" cy="${t.y}" r="3"/>`);
-    } else {
-      t.lits.forEach((l, q) => {
-        const py = t.y - (k - 1) * 7 + q * 14, sx = l.neg ? nbx[l.i] : bx[l.i];
-        const ex = g1x + (g1 === 'or' ? orBack(py, t.y, t.h, gW) : 0);
-        G[j].push(`<line class="w" x1="${sx}" y1="${py}" x2="${ex}" y2="${py}"/><circle class="dot" cx="${sx}" cy="${py}" r="3"/>`);
-      });
-      G[j].push(gatePath(g1, g1x, t.y, gW, t.h, col));
+      return;
     }
+    const k = t.ins.length, gt = gate(g1, g1x, t.y, t.h, COLORS[t.j % COLORS.length]);
+    t.ins.forEach((l, q) => {
+      const py = t.y - (k - 1) * 7 + q * 14, sx = src(l);
+      G[j].push(`<line class="w" x1="${sx}" y1="${py}" x2="${gt.pin(py)}" y2="${py}"/><circle class="dot" cx="${sx}" cy="${py}" r="3"/>`);
+    });
+    G[j].push(gt.svg);
   });
   const T = terms.length;
-  let outX, outY, x2;
-  if (T === 1) {
+  let outX, outY;
+  if (!hasL2) {
     outY = terms[0].y; outX = g1out + 40;
     G[0].push(`<line class="w" x1="${g1out}" y1="${outY}" x2="${outX}" y2="${outY}"/>`);
+  } else if (T === 1) {
+    // 只有一項：第二層是輸入短接的 NAND／NOR（當反相器）
+    const Y = terms[0].y, x2 = g1out + 34, gt = gate(g2, x2, Y, 34, null), sx = x2 - 14;
+    G[0].push(`<path class="w" d="M${g1out},${Y} H${sx} M${sx},${Y - 7} V${Y + 7} M${sx},${Y - 7} H${gt.pin(Y - 7)} M${sx},${Y + 7} H${gt.pin(Y + 7)}"/><circle class="dot" cx="${sx}" cy="${Y}" r="3"/>`);
+    P.push(gt.svg); outY = Y; outX = gt.out + 36;
+    P.push(`<line class="w" x1="${gt.out}" y1="${Y}" x2="${outX}" y2="${Y}"/>`);
   } else {
     const H = Math.max(36, T * 14 + 10), Y = (terms[0].y + terms[T - 1].y) / 2;
     const half = Math.floor((T - 1) / 2), rank = j => (j <= half ? j : T - 1 - j);
     const maxR = Math.max(...terms.map((_, j) => rank(j)));
-    x2 = g1out + 22 + (maxR + 1) * 10;
+    const x2 = g1out + 22 + (maxR + 1) * 10, gt = gate(g2, x2, Y, H, null);
     terms.forEach((t, j) => {
       const py = Y - (T - 1) * 7 + j * 14, xm = x2 - 10 - rank(j) * 10;
-      const ex = x2 + (g2 === 'or' ? orBack(py, Y, H, gW) : 0);
-      G[j].push(`<path class="w" d="M${g1out},${t.y} H${xm} V${py} H${ex}"/>`);
+      G[j].push(`<path class="w" d="M${g1out},${t.y} H${xm} V${py} H${gt.pin(py)}"/>`);
     });
-    P.push(gatePath(g2, x2, Y, gW, H, null));
-    outY = Y; outX = x2 + gW + 36;
-    P.push(`<line class="w" x1="${x2 + gW}" y1="${Y}" x2="${outX}" y2="${Y}"/>`);
+    P.push(gt.svg); outY = Y; outX = gt.out + 36;
+    P.push(`<line class="w" x1="${gt.out}" y1="${Y}" x2="${outX}" y2="${Y}"/>`);
   }
   P.push(`<text x="${outX + 6}" y="${outY + 6}" class="vl">F</text>`);
   const W = outX + 30, Hs = busBottom + 14;
   const groups = terms.map((t, j) => `<g class="term" data-t="${t.j}">${G[j].join('')}</g>`).join('');
-  return `<svg viewBox="0 0 ${W} ${Hs}" width="${W}" height="${Hs}" role="img" aria-label="F = ${exprStr(sol, n, form)} 的兩層邏輯閘電路">${P.join('')}${groups}</svg>`;
+  return `<svg viewBox="0 0 ${W} ${Hs}" width="${W}" height="${Hs}" role="img" aria-label="F = ${exprStr(sol, n, form)} 的邏輯閘電路">${P.join('')}${groups}</svg>`;
+}
+
+/* ========== XOR 形式 ========== */
+// 找出 F（忽略 X）= 乘積項 × (2 個以上變數的 XOR 或 XNOR) 的所有寫法，依 literal 數排序
+function findXorForms(n, vals) {
+  const N = 1 << n, out = [];
+  for (let S = 0; S < N; S++) {
+    if (pop(S) < 2) continue;
+    const rest = (N - 1) & ~S;
+    for (let pm = rest; ; pm = (pm - 1) & rest) {
+      for (let pv = pm; ; pv = (pv - 1) & pm) {
+        for (const even of [false, true]) {
+          let ok = true;
+          for (let m = 0; m < N && ok; m++) {
+            if (vals[m] === 2) continue;
+            const f = ((m & pm) === pv && (pop(m & S) & 1) === (even ? 0 : 1)) ? 1 : 0;
+            if (f !== vals[m]) ok = false;
+          }
+          if (ok) out.push({ S, pm, pv, even, lits: pop(S) + pop(pm) });
+        }
+        if (pv === 0) break;
+      }
+      if (pm === 0) break;
+    }
+  }
+  return out.sort((a, b) => a.lits - b.lits || a.even - b.even || pop(a.pm & ~a.pv) - pop(b.pm & ~b.pv) || b.S - a.S);
+}
+// 只有比目前形式的最簡解更省 literal 時才回傳
+function xorFormsFor(n, vals, bestLits) {
+  const fs = findXorForms(n, vals);
+  if (!fs.length || fs[0].lits >= bestLits) return [];
+  return fs.filter(f => f.lits === fs[0].lits).slice(0, 3);
+}
+function xorParts(n, xf) {
+  const sv = [], pl = [];
+  for (let i = 0; i < n; i++) {
+    const b = 1 << (n - 1 - i);
+    if (xf.S & b) sv.push(i); else if (xf.pm & b) pl.push({ i, neg: !(xf.pv & b) });
+  }
+  return { sv, pl };
+}
+function xorExprStr(n, xf, html) {
+  const { sv, pl } = xorParts(n, xf);
+  const v = i => (html ? `<i>${VARS[i]}</i>` : VARS[i]);
+  const op = c => (html ? `<span class="xop">${c}</span>` : c);
+  let par;
+  if (!xf.even) par = sv.map(v).join(op('⊕'));
+  else if (sv.length === 2) par = sv.map(v).join(op('⊙'));
+  else par = '(' + sv.map(v).join(op('⊕')) + ")'";
+  if (!pl.length) return par;
+  const p = pl.map(l => v(l.i) + (l.neg ? "'" : '')).join('');
+  return p + (par.startsWith('(') ? par : '(' + par + ')');
+}
+function xorGates(n, xf) {
+  const { sv, pl } = xorParts(n, xf), gs = [];
+  pl.forEach(l => { if (l.neg) gs.push({ kind: 'not', fanin: 1 }); });
+  for (let q = 0; q < sv.length - 1; q++) gs.push({ kind: q === sv.length - 2 && xf.even ? 'xnor' : 'xor', fanin: 2 });
+  if (pl.length) gs.push({ kind: 'and', fanin: pl.length + 1 });
+  return gs;
+}
+function xorCircuitSVG(n, xf) {
+  const { sv, pl } = xorParts(n, xf);
+  const tU = Array(n).fill(false), nU = Array(n).fill(false);
+  sv.forEach(i => { tU[i] = true; });
+  pl.forEach(l => { (l.neg ? nU : tU)[l.i] = true; });
+  const L = busLayout(n, tU, nU);
+  const y0 = TOP + 84, rows = sv.map((_, k) => y0 + k * 30);
+  const prow = pl.map((_, k) => y0 + sv.length * 30 + 10 + k * 26);
+  const busBottom = Math.max(...rows, ...prow) + 12;
+  const P = [busSVG(n, L, tU, nU, 'not', busBottom)];
+  const wire = (s, px, py, xm) => `${s.tap ? `<circle class="dot" cx="${s.x}" cy="${s.y}" r="3"/>` : ''}<path class="w" d="M${s.x},${s.y} H${xm} V${py} H${px}"/>`;
+  const gx0 = L.endX + 30;
+  let sig = sv.map((i, k) => ({ x: L.bx[i], y: rows[k], tap: true })), col = 0;
+  while (sig.length > 1) {
+    const next = [], gx = gx0 + col * 92, last = sig.length === 2;
+    for (let q = 0; q < sig.length; q += 2) {
+      if (q + 1 >= sig.length) { next.push(sig[q]); continue; }
+      const a = sig[q], b = sig[q + 1], cy = (a.y + b.y) / 2;
+      const gt = gate(last && xf.even ? 'xnor' : 'xor', gx, cy, 34, null);
+      P.push(wire(a, gt.pin(cy - 7), cy - 7, gx - 20), wire(b, gt.pin(cy + 7), cy + 7, gx - 20), gt.svg);
+      next.push({ x: gt.out, y: cy });
+    }
+    sig = next; col++;
+  }
+  let outX, outY;
+  if (pl.length) {
+    const ins = [{ s: sig[0] }].concat(pl.map((l, k) => ({ s: { x: l.neg ? L.nbx[l.i] : L.bx[l.i], y: prow[k], tap: true } })));
+    ins.sort((p, q) => p.s.y - q.s.y);
+    const k = ins.length, h = Math.max(30, k * 14 + 8), cy = (ins[0].s.y + ins[k - 1].s.y) / 2, gx = gx0 + col * 92;
+    const gt = gate('and', gx, cy, h, null), half = Math.floor((k - 1) / 2);
+    ins.forEach((p, q) => {
+      const py = cy - (k - 1) * 7 + q * 14, rank = q <= half ? q : k - 1 - q;
+      P.push(wire(p.s, gt.pin(py), py, gx - 12 - rank * 10));
+    });
+    P.push(gt.svg); outY = cy; outX = gt.out + 36;
+    P.push(`<line class="w" x1="${gt.out}" y1="${cy}" x2="${outX}" y2="${cy}"/>`);
+  } else {
+    outY = sig[0].y; outX = sig[0].x + 36;
+    P.push(`<line class="w" x1="${sig[0].x}" y1="${outY}" x2="${outX}" y2="${outY}"/>`);
+  }
+  P.push(`<text x="${outX + 6}" y="${outY + 6}" class="vl">F</text>`);
+  const W = outX + 30, Hs = busBottom + 14;
+  return `<svg viewBox="0 0 ${W} ${Hs}" width="${W}" height="${Hs}" role="img" aria-label="F = ${xorExprStr(n, xf, false)} 的 XOR 電路">${P.join('')}</svg>`;
+}
+
+/* ========== 閘數統計與麵包板用料 ========== */
+const CHIPS = {
+  not: [[1, '7404', 6]],
+  and: [[2, '7408', 4], [3, '7411', 3], [4, '7421', 2], [8, 'CD4068', 1]],
+  or: [[2, '7432', 4], [3, 'CD4075', 3], [4, 'CD4072', 2], [8, 'CD4078', 1]],
+  nand: [[2, '7400', 4], [3, '7410', 3], [4, '7420', 2], [8, '7430', 1]],
+  nor: [[2, '7402', 4], [3, '7427', 3], [4, 'CD4002', 2], [8, 'CD4078', 1]],
+  xor: [[2, '7486', 4]],
+  xnor: [[2, 'CD4077', 4]],
+};
+const CHIP_DESC = {
+  '7404': '6 個 NOT', '7408': '4 個 2 輸入 AND', '7411': '3 個 3 輸入 AND', '7421': '2 個 4 輸入 AND', CD4068: '1 個 8 輸入 AND／NAND',
+  '7432': '4 個 2 輸入 OR', CD4075: '3 個 3 輸入 OR', CD4072: '2 個 4 輸入 OR', CD4078: '1 個 8 輸入 OR／NOR',
+  '7400': '4 個 2 輸入 NAND', '7410': '3 個 3 輸入 NAND', '7420': '2 個 4 輸入 NAND', '7430': '1 個 8 輸入 NAND',
+  '7402': '4 個 2 輸入 NOR', '7427': '3 個 3 輸入 NOR', CD4002: '2 個 4 輸入 NOR', '7486': '4 個 2 輸入 XOR', CD4077: '4 個 2 輸入 XNOR',
+};
+function gateSummary(gs) {
+  const m = new Map();
+  for (const g of gs) {
+    const label = g.kind === 'not' ? 'NOT' : g.tied ? `${GATE_NAME[g.kind]}（輸入短接當反相器）` : `${g.fanin} 輸入 ${GATE_NAME[g.kind]}`;
+    m.set(label, (m.get(label) || 0) + 1);
+  }
+  return [...m].map(([l, c]) => `${c} 個 ${l}`).join('、') + `，共 ${gs.length} 個閘`;
+}
+function partsList(gs) {
+  const rows = new Map();
+  for (const g of gs) {
+    const opt = CHIPS[g.kind].find(c => c[0] >= g.fanin), key = opt[1] + '|' + g.kind;
+    if (!rows.has(key)) rows.set(key, { part: opt[1], per: opt[2], used: 0, padded: false });
+    const r = rows.get(key);
+    r.used++;
+    if (!g.tied && g.fanin < opt[0]) r.padded = true;
+  }
+  const list = [...rows.values()].map(r => ({ ...r, chips: Math.ceil(r.used / r.per) }));
+  return { list, total: list.reduce((s, r) => s + r.chips, 0) };
+}
+function partsHTML(gs) {
+  const { list, total } = partsList(gs);
+  let h = `<table class="tb"><thead><tr><th>晶片</th><th>內容</th><th>用到</th><th>片數</th></tr></thead><tbody>`;
+  for (const r of list) h += `<tr><td>${r.part}${r.padded ? '*' : ''}</td><td>${CHIP_DESC[r.part]}</td><td>${r.used} 個閘</td><td>${r.chips}</td></tr>`;
+  h += `</tbody></table><p class="hint">共 ${total} 片。`;
+  if (list.some(r => r.padded)) h += '* 閘的輸入比晶片少，多餘輸入 AND／NAND 接 1、OR／NOR 接 0。';
+  return h + '以常見型號估算，每種規格分開計算，沒有做跨晶片共用；CD40xx 是 CMOS 4000 系列，和 74LS 混用要注意邏輯準位。實際以實驗室現有的晶片為準。</p>';
+}
+const CIRC_NOTE = {
+  SOP: { nn: 'AND-OR 兩層都換成 NAND（雙重反相）。只有一個 literal 的項要先取補數再進第二層；只有一項時第二層是當反相器用的 NAND。', pure: '連輸入端的反相器也改用輸入短接的 NAND，整個電路只用一種閘。' },
+  POS: { nn: 'OR-AND 兩層都換成 NOR（雙重反相）。只有一個 literal 的項要先取補數再進第二層；只有一項時第二層是當反相器用的 NOR。', pure: '連輸入端的反相器也改用輸入短接的 NOR，整個電路只用一種閘。' },
+};
+function circuitPanelHTML(n, sol, form, variant, xfs) {
+  const base = circuitPlan(n, sol, form, 'std');
+  if (base.constant) {
+    const v = base.value;
+    return `<div class="circuit"><p class="const">F = ${v} 是常數，不需要邏輯閘，輸出直接接${v === '1' ? '高電位（1）' : '低電位（0）'}。</p></div>`;
+  }
+  const names = form === 'SOP' ? [['std', 'AND-OR'], ['nn', 'NAND-NAND'], ['pure', '只用 NAND']] : [['std', 'OR-AND'], ['nn', 'NOR-NOR'], ['pure', '只用 NOR']];
+  if (xfs.length) names.push(['xor', 'XOR 形式']);
+  if (!names.some(([k]) => k === variant)) variant = 'std';
+  let svg, gs, note = '';
+  if (variant === 'xor') {
+    svg = xorCircuitSVG(n, xfs[0]); gs = xorGates(n, xfs[0]);
+    note = `F = <span class="xe">${xorExprStr(n, xfs[0], true)}</span>。這是偵測到的 XOR 寫法，不保證是所有 XOR 電路中最省的。`;
+  } else {
+    const p = variant === 'std' ? base : circuitPlan(n, sol, form, variant);
+    svg = circuitSVG(n, p, form, sol); gs = planGates(p);
+    note = variant === 'std' ? '' : CIRC_NOTE[form][variant];
+  }
+  const tabs = names.map(([k, l]) => `<button type="button" data-circ="${k}" aria-pressed="${k === variant}">${l}</button>`).join('');
+  return `<div class="circtabs" role="group" aria-label="電路形式">${tabs}</div>
+    ${note ? `<p class="hint circnote">${note}</p>` : ''}
+    <div class="circuit">${svg}</div>
+    <p class="meta gatecount">${gateSummary(gs)}</p>
+    <h4 class="partsh">麵包板用料</h4><div class="scroll">${partsHTML(gs)}</div>`;
+}
+function xorLineHTML(n, xfs, sol, form) {
+  if (!xfs.length) return '';
+  const best = solCost(sol, n), bg = planGates(circuitPlan(n, sol, form, 'std')).length;
+  const xs = xfs.map(f => `<span class="xe">F = ${xorExprStr(n, f, true)}</span>`).join(' 或 ');
+  return `也可以寫成 XOR 形式：${xs}（${xfs[0].lits} 個 literal、${xorGates(n, xfs[0]).length} 個閘；最簡 ${form} 要 ${best.lits} 個 literal、${bg} 個閘）`;
 }
 
 /* ========== K-map 圈選幾何 ========== */
@@ -794,7 +1085,7 @@ function bindHL(root) {
 function setPressed(seg, attr, val) { seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset[attr] === String(val)))); }
 
 /* ---------- 化簡模式 ---------- */
-const S = { n: 4, form: 'SOP', vals: null, sel: 0 };
+const S = { n: 4, form: 'SOP', vals: null, sel: 0, circ: 'std' };
 function renderSimplify(focusM) {
   const res = solve(S.n, S.vals, S.form);
   if (S.sel >= res.solutions.length) S.sel = 0;
@@ -803,9 +1094,12 @@ function renderSimplify(focusM) {
   $('#solTabsS').innerHTML = solTabsHTML(res.solutions.length, S.sel);
   $('#exprS').innerHTML = exprHTML(sol, S.n, S.form, true);
   $('#metaS').textContent = metaText(sol, S.n, S.form);
+  const xfs = xorFormsFor(S.n, S.vals, solCost(sol, S.n).lits);
+  $('#xorS').innerHTML = xorLineHTML(S.n, xfs, sol, S.form);
+  $('#xorS').hidden = !xfs.length;
   $('#piS').innerHTML = piTableHTML(res, sol);
   $('#stepsBodyS').innerHTML = stepsHTML(res);
-  $('#circS').innerHTML = circuitSVG(S.n, sol, S.form);
+  $('#circS').innerHTML = circuitPanelHTML(S.n, sol, S.form, S.circ, xfs);
   setPressed($('#nSegS'), 'n', S.n);
   setPressed($('#formSegS'), 'form', S.form);
   setHL($('#simplify'), null);
@@ -814,7 +1108,7 @@ function renderSimplify(focusM) {
 function setMDMsg(text) { $('#mdMsg').textContent = text; $('#mdMsg').className = 'msg' + (text ? ' err' : ''); $('#mdInput').classList.toggle('bad', !!text); }
 
 /* ---------- 練習模式 ---------- */
-const P = { n: 4, form: 'SOP', dc: false, vals: null, sel: 0, revealed: false, attempted: false, solved: false, bad: new Set(), correct: 0, total: 0 };
+const P = { n: 4, form: 'SOP', dc: false, circ: 'std', vals: null, sel: 0, revealed: false, attempted: false, solved: false, bad: new Set(), correct: 0, total: 0 };
 function newProblem() {
   P.vals = randomProblem(P.n, P.dc);
   Object.assign(P, { sel: 0, revealed: false, attempted: false, solved: false, bad: new Set() });
@@ -838,7 +1132,10 @@ function renderPractice() {
     $('#solTabsP').innerHTML = solTabsHTML(res.solutions.length, P.sel);
     $('#exprP').innerHTML = exprHTML(sol, P.n, P.form, true);
     $('#metaP').textContent = metaText(sol, P.n, P.form);
-    $('#circP').innerHTML = circuitSVG(P.n, sol, P.form);
+    const xfs = xorFormsFor(P.n, P.vals, solCost(sol, P.n).lits);
+    $('#xorP').innerHTML = xorLineHTML(P.n, xfs, sol, P.form);
+    $('#xorP').hidden = !xfs.length;
+    $('#circP').innerHTML = circuitPanelHTML(P.n, sol, P.form, P.circ, xfs);
   }
   $('#showBtn').disabled = P.revealed;
   setPressed($('#nSegP'), 'n', P.n);
@@ -873,6 +1170,7 @@ function feedbackHTML(r) {
       const items = r.groups.map(g => '<li>' + groupHTML(g, ms) + '</li>').join('');
       return `<div class="fb bad"><p><b>不等價</b>：你的式子在 ${cnt} 個格子上和題目不同，K-map 上用紅框標出。</p><ul>${items}</ul></div>`;
     }
+    case 'xor': return `<div class="fb warn"><p><b>等價，但用了 XOR／XNOR</b>：這題要求 ${P.form}，請改寫成只有 AND、OR、NOT 的${P.form === 'SOP' ? '積之和' : '和之積'}。這次不算答對。</p></div>`;
     case 'form': return `<div class="fb warn"><p><b>等價，但不是 ${P.form} 形式</b>。請寫成${P.form === 'SOP' ? "像 AB' + C'D 這樣的積之和" : "像 (A+B')(C+D) 這樣的和之積"}。</p></div>`;
     case 'notmin': {
       const parts = [];
@@ -923,6 +1221,8 @@ function init() {
   });
   $('#formSegS').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.form = b.dataset.form; S.sel = 0; renderSimplify(); });
   $('#solTabsS').addEventListener('click', e => { const b = e.target.closest('[data-sol]'); if (!b) return; S.sel = +b.dataset.sol; renderSimplify(); });
+  $('#circS').addEventListener('click', e => { const b = e.target.closest('[data-circ]'); if (!b) return; S.circ = b.dataset.circ; renderSimplify(); });
+  $('#circP').addEventListener('click', e => { const b = e.target.closest('[data-circ]'); if (!b) return; P.circ = b.dataset.circ; renderPractice(); });
 
   document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
     const mode = b.dataset.mode;
@@ -943,7 +1243,7 @@ function init() {
   $('#solTabsP').addEventListener('click', e => { const b = e.target.closest('[data-sol]'); if (!b) return; P.sel = +b.dataset.sol; renderPractice(); });
 }
 if (typeof document !== 'undefined') init();
-if (typeof module !== 'undefined') module.exports = { solve, exprStr, termStr, parseMD, canonicalMD, parseExpr, judge, nodeStr, circuitSVG, randomProblem, kLayout, cellMinterm, solCost, groupSegs };
+if (typeof module !== 'undefined') module.exports = { solve, exprStr, termStr, parseMD, canonicalMD, parseExpr, evalNode, judge, nodeStr, circuitSVG, randomProblem, kLayout, cellMinterm, solCost, groupSegs, circuitPlan, planGates, partsList, gateSummary, circuitPanelHTML, findXorForms, xorFormsFor, xorExprStr, xorGates, xorCircuitSVG, xorLineHTML, CONST_RATE };
 </script>
 </body>
 </html>

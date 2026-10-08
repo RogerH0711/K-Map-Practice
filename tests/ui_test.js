@@ -55,16 +55,29 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await pg.screenshot({ path: out + '/' + name + '_4_practice.png', fullPage: true });
     // AC17: 10 problems, answer correctly each via revealed? count correct by submitting solver answer
     if (name === 'desktop') {
-      let constCount = 0;
       for (let i = 0; i < 10; i++) {
         await pg.click('#nextBtn');
         const ans = await pg.evaluate(() => { const r = solve(P.n, P.vals, P.form); return exprStr(r.solutions[0], P.n, P.form); });
-        const c = await pg.evaluate(() => !P.vals.includes(0) || !P.vals.includes(1));
-        if (c) constCount++;
         await pg.fill('#ansInput', ans); await pg.click('#submitBtn');
       }
       const sc = await pg.textContent('#scoreP');
-      ok('AC17 UI', constCount === 0 && sc.includes('答對 10 題／作答 11 題'), sc);
+      ok('AC17 UI', sc.includes('答對 10 題／作答 11 題'), sc);
+      // AC20 UI：注入常數題，作答 1 判為正確
+      await pg.evaluate(() => { P.form = 'SOP'; P.vals = Array(1 << P.n).fill(1); P.revealed = false; P.attempted = false; P.solved = false; renderPractice(); });
+      await pg.fill('#ansInput', '1'); await pg.click('#submitBtn');
+      ok('AC20 UI constant', (await pg.textContent('#fbP')).includes('正確'));
+      // AC22 UI：電路分頁切換
+      await pg.click('.tabs button[data-mode="simplify"]');
+      await pg.click('#nSegS [data-n="3"]');
+      await pg.fill('#mdInput', 'm(0,1,2,5,6,7)');
+      await pg.click('#circS [data-circ="pure"]');
+      ok('AC22 UI NAND only', (await pg.textContent('#circS .gatecount')).includes('共 7 個閘') && await pg.isVisible('#circS svg'));
+      // AC26 UI：XOR 形式與分頁
+      await pg.fill('#mdInput', 'm(1,2,4,7)');
+      ok('AC26 UI XOR line', (await pg.textContent('#xorS')).includes('3 個 literal'));
+      await pg.click('#circS [data-circ="xor"]');
+      ok('AC26 UI XOR tab', (await pg.textContent('#circS .gatecount')).includes('XOR'));
+      await pg.screenshot({ path: out + '/desktop_5_xor.png', fullPage: true });
     }
     if (name === 'mobile') ok('375px no h-scroll (end)', await pg.evaluate(() => document.documentElement.scrollWidth) === 375);
     await pg.close();
